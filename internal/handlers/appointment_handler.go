@@ -41,15 +41,54 @@ func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	// rg.GET("/admin/weekly-performance", h.WeeklyPerformance)
 }
 
+// ListAppointments godoc
+// @Summary      Lista agendamentos
+// @Description  Retorna histórico ou agendamentos em um período
+// @Tags         appointments
+// @Security     Bearer
+// @Accept       json
+// @Produce      json
+// @Param        start_date  query  string  false  "Data inicial"
+// @Param        end_date    query  string  false  "Data final"
+// @Success      200  {array}  models.Appointment
+// @Failure      401  {object}  map[string]string
+// @Failure      500  {object}  ErrorResponse
+// @Router       /appointments [get]
+func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
+	var filter models.AppointmentFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if filter.StartDate == nil {
+		dftStart := time.Now().AddDate(0, -1, 0)
+		filter.StartDate = &dftStart
+	}
+	if filter.EndDate == nil {
+		dftEnd := time.Now().AddDate(0, 1, 0)
+		filter.EndDate = &dftEnd
+	}
+
+	list, err := h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, list)
+}
+
 // CreateAppointment godoc
 // @Summary      Cria um novo agendamento
 // @Description  Permite agendar um ou mais serviços
 // @Tags         appointments
+// @Security     Bearer
 // @Accept       json
 // @Produce      json
 // @Param        appointment  body  models.Appointment  true  "Dados do agendamento"
 // @Success      201  {object}  models.Appointment
 // @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /appointments [post]
 func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
@@ -80,12 +119,14 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 // @Summary      Atualiza um agendamento
 // @Description  Permite alteração até 2 dias antes
 // @Tags         appointments
+// @Security     Bearer
 // @Accept       json
 // @Produce      json
 // @Param        id   path      int                   true  "ID do agendamento"
 // @Param        appointment  body  models.Appointment  true  "Dados do agendamento"
 // @Success      200  {object}  models.Appointment
 // @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse
 // @Failure      403  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /appointments/{id} [put]
@@ -112,41 +153,6 @@ func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, updated)
-}
-
-// ListAppointments godoc
-// @Summary      Lista agendamentos
-// @Description  Retorna histórico ou agendamentos em um período
-// @Tags         appointments
-// @Accept       json
-// @Produce      json
-// @Param        start_date  query  string  false  "Data inicial"
-// @Param        end_date    query  string  false  "Data final"
-// @Success      200  {array}  models.Appointment
-// @Failure      500  {object}  ErrorResponse
-// @Router       /appointments [get]
-func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
-	var filter models.AppointmentFilter
-	if err := c.ShouldBindQuery(&filter); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if filter.StartDate == nil {
-		dftStart := time.Now().AddDate(0, -1, 0)
-		filter.StartDate = &dftStart
-	}
-	if filter.EndDate == nil {
-		dftEnd := time.Now().AddDate(0, 1, 0)
-		filter.EndDate = &dftEnd
-	}
-
-	list, err := h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, list)
 }
 
 // ListIncoming godoc

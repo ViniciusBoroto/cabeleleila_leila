@@ -44,7 +44,7 @@ func main() {
 
 	// Setup handlers
 	authHandler := handlers.NewAuthHandler(authSvc, userRepo)
-	apHandler := handlers.NewAppointmentHandler(apSvc)
+	appointmentsHandler := handlers.NewAppointmentHandler(apSvc)
 
 	// Public routes
 	public := r.Group("/api")
@@ -56,7 +56,7 @@ func main() {
 	protected.Use(handlers.JWTAuthMiddleware(authSvc))
 	{
 		// Appointment routes (for all authenticated users)
-		apHandler.RegisterRoutes(protected)
+		appointmentsHandler.RegisterRoutes(protected)
 	}
 
 	if err := r.Run(":8080"); err != nil {
