@@ -1,3 +1,9 @@
+// @title Hair Salon API
+// @version 1.0
+// @description Hair Salon Management API with JWT Authentication
+// @host localhost:8080
+// @basePath /api
+// @schemes http
 package main
 
 import (
@@ -6,6 +12,7 @@ import (
 
 	_ "github.com/ViniciusBoroto/cabeleleila_leila/docs"
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/handlers"
+	"github.com/ViniciusBoroto/cabeleleila_leila/internal/models"
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/repository"
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/service"
 	"github.com/gin-gonic/gin"
@@ -18,16 +25,39 @@ import (
 
 func main() {
 	r := gin.Default()
-	// In your router setup:
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	db := setupSqliteDB()
+	migrateDatabase(db)
+
+	// Setup repositories
+	userRepo := repository.NewUserRepository(db)
 	apRepo := repository.NewAppointmentRepository(db)
+
+	// Setup services
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		panic("JWT_SECRET environment variable not set")
+	}
+	authSvc := service.NewAuthService(jwtSecret)
 	apSvc := service.NewAppointmentService(apRepo)
 
-	h := handlers.NewAppointmentHandler(apSvc)
-	api := r.Group("/api")
-	h.RegisterRoutes(api)
+	// Setup handlers
+	authHandler := handlers.NewAuthHandler(authSvc, userRepo)
+	apHandler := handlers.NewAppointmentHandler(apSvc)
+
+	// Public routes
+	public := r.Group("/api")
+	public.POST("/auth/login", authHandler.Login)
+	public.POST("/auth/register", authHandler.Register)
+
+	// Protected routes - all authenticated users
+	protected := r.Group("/api")
+	protected.Use(handlers.JWTAuthMiddleware(authSvc))
+	{
+		// Appointment routes (for all authenticated users)
+		apHandler.RegisterRoutes(protected)
+	}
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
@@ -44,4 +74,15 @@ func setupSqliteDB() *gorm.DB {
 		panic(err)
 	}
 	return db
+}
+
+func migrateDatabase(db *gorm.DB) {
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.Customer{},
+		&models.Service{},
+		&models.Appointment{},
+	); err != nil {
+		panic(err)
+	}
 }
