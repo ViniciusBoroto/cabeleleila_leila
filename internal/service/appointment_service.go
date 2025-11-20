@@ -9,7 +9,7 @@ import (
 )
 
 type AppointmentService interface {
-	CreateAppointment(customerID uint, services []models.Service, date time.Time) (models.Appointment, *time.Time, error)
+	CreateAppointment(customerID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, res error)
 	UpdateAppointment(id uint, newAp models.Appointment) (models.Appointment, error)
 	ListHistory(start, end time.Time) ([]models.Appointment, error)
 	ListAll() ([]models.Appointment, error)
@@ -35,14 +35,14 @@ func getWeekRange(date time.Time) (time.Time, time.Time) {
 	return start, end
 }
 
-func (s *appointmentService) CreateAppointment(customerID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *time.Time, err error) {
+func (s *appointmentService) CreateAppointment(customerID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, err error) {
 	weekStart, weekEnd := getWeekRange(date)
 
 	// Sugestão de unificação de datas
 	existing, _ := s.repo.FindCustomerAppointmentsInWeek(customerID, weekStart, weekEnd)
 	if len(existing) > 0 {
 		first := existing[0]
-		suggestion = &first.Date
+		suggestion = &first
 	}
 
 	ap := models.Appointment{

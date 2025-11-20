@@ -50,9 +50,9 @@ func (mr *MockAppointmentServiceMockRecorder) ConfirmAppointment(id interface{})
 }
 
 // CreateAppointment mocks base method.
-func (m *MockAppointmentService) CreateAppointment(customerID uint, service string, date time.Time) (models.Appointment, *time.Time, error) {
+func (m *MockAppointmentService) CreateAppointment(customerID uint, services []models.Service, date time.Time) (models.Appointment, *time.Time, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAppointment", customerID, service, date)
+	ret := m.ctrl.Call(m, "CreateAppointment", customerID, services, date)
 	ret0, _ := ret[0].(models.Appointment)
 	ret1, _ := ret[1].(*time.Time)
 	ret2, _ := ret[2].(error)
@@ -60,9 +60,9 @@ func (m *MockAppointmentService) CreateAppointment(customerID uint, service stri
 }
 
 // CreateAppointment indicates an expected call of CreateAppointment.
-func (mr *MockAppointmentServiceMockRecorder) CreateAppointment(customerID, service, date interface{}) *gomock.Call {
+func (mr *MockAppointmentServiceMockRecorder) CreateAppointment(customerID, services, date interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAppointment", reflect.TypeOf((*MockAppointmentService)(nil).CreateAppointment), customerID, service, date)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAppointment", reflect.TypeOf((*MockAppointmentService)(nil).CreateAppointment), customerID, services, date)
 }
 
 // GetWeeklyPerformance mocks base method.
@@ -112,16 +112,16 @@ func (mr *MockAppointmentServiceMockRecorder) ListHistory(start, end interface{}
 }
 
 // UpdateAppointment mocks base method.
-func (m *MockAppointmentService) UpdateAppointment(id uint, newDate time.Time) (models.Appointment, error) {
+func (m *MockAppointmentService) UpdateAppointment(id uint, newAp models.Appointment) (models.Appointment, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateAppointment", id, newDate)
+	ret := m.ctrl.Call(m, "UpdateAppointment", id, newAp)
 	ret0, _ := ret[0].(models.Appointment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateAppointment indicates an expected call of UpdateAppointment.
-func (mr *MockAppointmentServiceMockRecorder) UpdateAppointment(id, newDate interface{}) *gomock.Call {
+func (mr *MockAppointmentServiceMockRecorder) UpdateAppointment(id, newAp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAppointment", reflect.TypeOf((*MockAppointmentService)(nil).UpdateAppointment), id, newDate)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAppointment", reflect.TypeOf((*MockAppointmentService)(nil).UpdateAppointment), id, newAp)
 }

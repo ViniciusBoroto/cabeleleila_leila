@@ -57,10 +57,7 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 		return
 	}
 
-	resp := gin.H{"appointment": ap}
-	if suggestion != nil {
-		resp["suggestion"] = suggestion.Format("2006-01-02 15:04")
-	}
+	resp := gin.H{"appointment": ap, "suggestion": suggestion}
 
 	c.JSON(http.StatusCreated, resp)
 }
