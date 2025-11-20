@@ -1,0 +1,205 @@
+definitions:
+  handlers.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  models.Appointment:
+    properties:
+      created_at:
+        type: string
+      customer:
+        $ref: '#/definitions/models.Customer'
+      customer_id:
+        type: integer
+      date:
+        type: string
+      id:
+        type: integer
+      services:
+        items:
+          $ref: '#/definitions/models.Service'
+        type: array
+      status:
+        $ref: '#/definitions/models.AppointmentStatus'
+      updated_at:
+        type: string
+    type: object
+  models.AppointmentStatus:
+    enum:
+    - PENDING
+    - CONFIRMED
+    - DONE
+    - CANCELED
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusConfirmed
+    - StatusDone
+    - StatusCanceled
+  models.Customer:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      phone:
+        type: string
+    type: object
+  models.Service:
+    properties:
+      duration_minutes:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: number
+    type: object
+info:
+  contact: {}
+paths:
+  /admin/appointments/{id}/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Confirma um agendamento operacionalmente
+      parameters:
+      - description: ID do agendamento
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Confirma um agendamento
+      tags:
+      - admin
+  /admin/incoming:
+    get:
+      consumes:
+      - application/json
+      description: Listagem operacional de agendamentos recebidos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Appointment'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Lista agendamentos recebidos
+      tags:
+      - admin
+  /appointments:
+    get:
+      consumes:
+      - application/json
+      description: Retorna histórico ou agendamentos em um período
+      parameters:
+      - description: Data inicial
+        in: query
+        name: start_date
+        type: string
+      - description: Data final
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Appointment'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Lista agendamentos
+      tags:
+      - appointments
+    post:
+      consumes:
+      - application/json
+      description: Permite agendar um ou mais serviços
+      parameters:
+      - description: Dados do agendamento
+        in: body
+        name: appointment
+        required: true
+        schema:
+          $ref: '#/definitions/models.Appointment'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Appointment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Cria um novo agendamento
+      tags:
+      - appointments
+  /appointments/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Permite alteração até 2 dias antes
+      parameters:
+      - description: ID do agendamento
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados do agendamento
+        in: body
+        name: appointment
+        required: true
+        schema:
+          $ref: '#/definitions/models.Appointment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Appointment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Atualiza um agendamento
+      tags:
+      - appointments
+swagger: "2.0"

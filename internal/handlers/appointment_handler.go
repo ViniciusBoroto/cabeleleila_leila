@@ -11,6 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 // AppointmentHandler contém dependências (service).
 type AppointmentHandler struct {
 	svc service.AppointmentService
@@ -37,7 +41,17 @@ func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	// rg.GET("/admin/weekly-performance", h.WeeklyPerformance)
 }
 
-// CreateAppointment permite agendar um ou mais serviços.
+// CreateAppointment godoc
+// @Summary      Cria um novo agendamento
+// @Description  Permite agendar um ou mais serviços
+// @Tags         appointments
+// @Accept       json
+// @Produce      json
+// @Param        appointment  body  models.Appointment  true  "Dados do agendamento"
+// @Success      201  {object}  models.Appointment
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /appointments [post]
 func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 	var req struct {
 		CustomerID uint             `json:"customer_id"`
@@ -62,8 +76,19 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
-// UpdateAppointment aplica a regra: alteração permitida até 2 dias antes.
-// Se a data agendada for menor que 2 dias, a alteração só por telefone (aqui retornamos 403).
+// UpdateAppointment godoc
+// @Summary      Atualiza um agendamento
+// @Description  Permite alteração até 2 dias antes
+// @Tags         appointments
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int                   true  "ID do agendamento"
+// @Param        appointment  body  models.Appointment  true  "Dados do agendamento"
+// @Success      200  {object}  models.Appointment
+// @Failure      400  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /appointments/{id} [put]
 func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 	idParam := c.Param("id")
 	var req models.Appointment
@@ -89,18 +114,17 @@ func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
-// // GetAppointment retorna detalhes de um agendamento.
-// func (h *AppointmentHandler) GetAppointment(c *gin.Context) {
-// 	id := c.Param("id")
-// 	appt, err := h.svc.GetAppointment(c.Request.Context(), id)
-// 	if err != nil {
-// 		c.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
-// 		return
-// 	}
-// 	c.JSON(http.StatusOK, appt)
-// }
-
-// ListAppointments retorna histórico / agendamentos em um período.
+// ListAppointments godoc
+// @Summary      Lista agendamentos
+// @Description  Retorna histórico ou agendamentos em um período
+// @Tags         appointments
+// @Accept       json
+// @Produce      json
+// @Param        start_date  query  string  false  "Data inicial"
+// @Param        end_date    query  string  false  "Data final"
+// @Success      200  {array}  models.Appointment
+// @Failure      500  {object}  ErrorResponse
+// @Router       /appointments [get]
 func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
 	var filter models.AppointmentFilter
 	if err := c.ShouldBindQuery(&filter); err != nil {
@@ -125,7 +149,15 @@ func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-// ListIncoming - listagem operacional de agendamentos recebidos.
+// ListIncoming godoc
+// @Summary      Lista agendamentos recebidos
+// @Description  Listagem operacional de agendamentos recebidos
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Success      200  {array}  models.Appointment
+// @Failure      500  {object}  ErrorResponse
+// @Router       /admin/incoming [get]
 func (h *AppointmentHandler) ListIncoming(c *gin.Context) {
 	list, err := h.svc.ListHistory(time.Now(), time.Now().AddDate(0, 0, 7))
 	if err != nil {
@@ -135,7 +167,16 @@ func (h *AppointmentHandler) ListIncoming(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-// ConfirmAppointment - confirma um agendamento (operacional).
+// ConfirmAppointment godoc
+// @Summary      Confirma um agendamento
+// @Description  Confirma um agendamento operacionalmente
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "ID do agendamento"
+// @Success      204  {object}  nil
+// @Failure      400  {object}  ErrorResponse
+// @Router       /admin/appointments/{id}/confirm [post]
 func (h *AppointmentHandler) ConfirmAppointment(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
