@@ -38,6 +38,12 @@ type UserResponse struct {
 // @Router       /admin/users [get]
 func GetAllUsers(userRepo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists || role != models.RoleAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+			return
+		}
+
 		users, err := userRepo.FindAll()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -74,6 +80,12 @@ func GetAllUsers(userRepo repository.UserRepository) gin.HandlerFunc {
 // @Router       /admin/users [post]
 func CreateUser(userRepo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists || role != models.RoleAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+			return
+		}
+
 		var req CreateUserRequest
 		if err := c.BindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -128,6 +140,12 @@ func CreateUser(userRepo repository.UserRepository) gin.HandlerFunc {
 // @Router       /admin/users/{id} [get]
 func GetUser(userRepo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists || role != models.RoleAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+			return
+		}
+
 		idStr := c.Param("id")
 		id, err := strconv.ParseUint(idStr, 10, 32)
 		if err != nil {
@@ -176,6 +194,12 @@ type UpdateUserRequest struct {
 // @Router       /admin/users/{id} [put]
 func UpdateUser(userRepo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists || role != models.RoleAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+			return
+		}
+
 		idStr := c.Param("id")
 		id, err := strconv.ParseUint(idStr, 10, 32)
 		if err != nil {
@@ -238,6 +262,12 @@ func UpdateUser(userRepo repository.UserRepository) gin.HandlerFunc {
 // @Router       /admin/users/{id} [delete]
 func DeleteUser(userRepo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists || role != models.RoleAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+			return
+		}
+
 		idStr := c.Param("id")
 		id, err := strconv.ParseUint(idStr, 10, 32)
 		if err != nil {

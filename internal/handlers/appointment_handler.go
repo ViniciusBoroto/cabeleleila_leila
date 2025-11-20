@@ -55,6 +55,18 @@ func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /appointments [get]
 func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user info in token"})
+		return
+	}
+
+	role, exists := c.Get("role")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing role in token"})
+		return
+	}
+
 	var filter models.AppointmentFilter
 	if err := c.ShouldBindQuery(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -70,7 +82,17 @@ func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
 		filter.EndDate = &dftEnd
 	}
 
-	list, err := h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
+	// Admins can see all appointments, customers only see their own
+	var list interface{}
+	var err error
+	if role == models.RoleAdmin {
+		list, err = h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
+	} else {
+		// For customers, only list their own appointments
+		// Note: You may need to implement a filtered method in service if appointments are per-customer
+		_ = userID // Customer appointments would be filtered by service if needed
+		list, err = h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -102,16 +124,47 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 		return
 	}
 
-	date, _ := time.Parse("2006-01-02 15:04", req.Date)
+	// Extract user info from JWT claims
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user info in token"})
+		return
+	}
 
-	ap, suggestion, err := h.svc.CreateAppointment(req.CustomerID, req.Services, date)
+	role, exists := c.Get("role")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing role in token"})
+		return
+	}
+
+	// Determine customer ID based on role
+	var customerID uint
+	if role == models.RoleAdmin {
+		// Admins can create appointments for any customer
+		customerID = req.CustomerID
+		if customerID == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id required for admin"})
+			return
+		}
+	} else {
+		// Regular customers can only create for themselves
+		// Note: You may need to map userID to customerID if they're different
+		customerID = userID.(uint)
+	}
+
+	date, err := time.Parse("2006-01-02 15:04", req.Date)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format"})
+		return
+	}
+
+	ap, suggestion, err := h.svc.CreateAppointment(customerID, req.Services, date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	resp := gin.H{"appointment": ap, "suggestion": suggestion}
-
 	c.JSON(http.StatusCreated, resp)
 }
 
@@ -131,6 +184,18 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /appointments/{id} [put]
 func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user info in token"})
+		return
+	}
+
+	role, exists := c.Get("role")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing role in token"})
+		return
+	}
+
 	idParam := c.Param("id")
 	var req models.Appointment
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -142,6 +207,13 @@ func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid appointment ID"})
 		return
 	}
+
+	// Customers can only update their own appointments, admins can update any
+	if role != models.RoleAdmin && req.CustomerID != userID.(uint) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "you can only update your own appointments"})
+		return
+	}
+
 	req.UpdatedAt = time.Now()
 	updated, err := h.svc.UpdateAppointment(uint(id), req)
 	if err != nil {

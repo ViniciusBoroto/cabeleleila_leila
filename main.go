@@ -57,6 +57,14 @@ func main() {
 	{
 		// Appointment routes (for all authenticated users)
 		appointmentsHandler.RegisterRoutes(protected)
+
+		// User management routes (admin only)
+		admin := protected.Group("/admin")
+		admin.GET("/users", handlers.GetAllUsers(userRepo))
+		admin.POST("/users", handlers.CreateUser(userRepo))
+		admin.GET("/users/:id", handlers.GetUser(userRepo))
+		admin.PUT("/users/:id", handlers.UpdateUser(userRepo))
+		admin.DELETE("/users/:id", handlers.DeleteUser(userRepo))
 	}
 
 	if err := r.Run(":8080"); err != nil {
