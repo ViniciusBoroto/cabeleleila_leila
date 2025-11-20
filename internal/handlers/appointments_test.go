@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/handlers"
+	"github.com/ViniciusBoroto/cabeleleila_leila/internal/mocks"
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/models"
-	"github.com/ViniciusBoroto/cabeleleila_leila/internal/service/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
