@@ -41,10 +41,12 @@ func main() {
 
 	db := setupSqliteDB()
 	migrateDatabase(db)
+	seed(db)
 
 	// Setup repositories
 	userRepo := repository.NewUserRepository(db)
 	apRepo := repository.NewAppointmentRepository(db)
+	serviceRepo := repository.NewServiceRepository(db)
 
 	// Setup services
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -53,6 +55,7 @@ func main() {
 	}
 	authSvc := service.NewAuthService(jwtSecret)
 	apSvc := service.NewAppointmentService(apRepo)
+	serviceSvc := service.NewServiceService(serviceRepo)
 
 	// Setup handlers
 	authHandler := handlers.NewAuthHandler(authSvc, userRepo)
@@ -63,6 +66,8 @@ func main() {
 	{
 		public.POST("/auth/login", authHandler.Login)
 		public.POST("/auth/register", authHandler.Register)
+		public.GET("/services", handlers.ListServices(serviceSvc))
+		public.GET("/services/:id", handlers.GetService(serviceSvc))
 	}
 
 	// Protected routes - all authenticated users
@@ -79,6 +84,11 @@ func main() {
 		admin.GET("/users/:id", handlers.GetUser(userRepo))
 		admin.PUT("/users/:id", handlers.UpdateUser(userRepo))
 		admin.DELETE("/users/:id", handlers.DeleteUser(userRepo))
+
+		// Service management routes (admin only)
+		admin.POST("/services", handlers.CreateService(serviceSvc))
+		admin.PUT("/services/:id", handlers.UpdateService(serviceSvc))
+		admin.DELETE("/services/:id", handlers.DeleteService(serviceSvc))
 	}
 
 	if err := r.Run(":8080"); err != nil {
@@ -107,4 +117,55 @@ func migrateDatabase(db *gorm.DB) {
 	); err != nil {
 		panic(err)
 	}
+}
+
+func seed(db *gorm.DB) {
+	// Check if services already exist
+	var count int64
+	db.Model(&models.Service{}).Count(&count)
+	if count > 0 {
+		return
+	}
+
+	// Default services
+	defaultServices := []models.Service{
+		{
+			Name:            "Corte de Cabelo",
+			Price:           50.0,
+			DurationMinutes: 30,
+		},
+		{
+			Name:            "Escova",
+			Price:           40.0,
+			DurationMinutes: 45,
+		},
+		{
+			Name:            "Coloração",
+			Price:           100.0,
+			DurationMinutes: 120,
+		},
+		{
+			Name:            "Hidratação",
+			Price:           60.0,
+			DurationMinutes: 60,
+		},
+		{
+			Name:            "Manicure",
+			Price:           30.0,
+			DurationMinutes: 30,
+		},
+		{
+			Name:            "Pedicure",
+			Price:           35.0,
+			DurationMinutes: 40,
+		},
+	}
+
+	for _, service := range defaultServices {
+		if err := db.Create(&service).Error; err != nil {
+			log.Printf("Error seeding service %s: %v", service.Name, err)
+		}
+	}
+
+	log.Println("Default services seeded successfully")
 }
