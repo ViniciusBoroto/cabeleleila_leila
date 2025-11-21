@@ -15,6 +15,7 @@ import (
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/models"
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/repository"
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/service"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	_ "github.com/joho/godotenv/autoload"
@@ -25,6 +26,17 @@ import (
 
 func main() {
 	r := gin.Default()
+
+	// Setup CORS middleware
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * 3600,
+	}))
+
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	db := setupSqliteDB()
@@ -48,8 +60,10 @@ func main() {
 
 	// Public routes
 	public := r.Group("/api")
-	public.POST("/auth/login", authHandler.Login)
-	public.POST("/auth/register", authHandler.Register)
+	{
+		public.POST("/auth/login", authHandler.Login)
+		public.POST("/auth/register", authHandler.Register)
+	}
 
 	// Protected routes - all authenticated users
 	protected := r.Group("/api")

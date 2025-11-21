@@ -30,3 +30,60 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Build artifacts
+build/
+dist/
+out/
+es/
+lib/
+coverage/
+.next/ # Next.js specific build output
+.cache/ # Create React App cache
+
+# Editor/IDE specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store # macOS specific
+Thumbs.db # Windows specific
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# TypeScript specific
+*.tsbuildinfo
+
+# Test files
+*.spec.ts
+*.test.ts
+*.spec.tsx
+*.test.tsx
+
+# Other temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+
+# Storybook specific
+storybook-static/
+
+# Vercel deployment ignores
+.vercel/
