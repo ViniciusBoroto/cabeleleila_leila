@@ -1103,12 +1103,6 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
-                "customer": {
-                    "$ref": "#/definitions/models.Customer"
-                },
-                "customer_id": {
-                    "type": "integer"
-                },
                 "date": {
                     "type": "string"
                 },
@@ -1126,6 +1120,12 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/models.User"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -1144,26 +1144,6 @@ const docTemplate = `{
                 "StatusCanceled"
             ]
         },
-        "models.Customer": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                }
-            }
-        },
         "models.Service": {
             "type": "object",
             "properties": {
@@ -1178,6 +1158,35 @@ const docTemplate = `{
                 },
                 "price": {
                     "type": "number"
+                }
+            }
+        },
+        "models.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/models.UserRole"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },

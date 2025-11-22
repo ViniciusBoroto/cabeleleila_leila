@@ -111,7 +111,6 @@ func setupSqliteDB() *gorm.DB {
 func migrateDatabase(db *gorm.DB) {
 	if err := db.AutoMigrate(
 		&models.User{},
-		&models.Customer{},
 		&models.Service{},
 		&models.Appointment{},
 	); err != nil {

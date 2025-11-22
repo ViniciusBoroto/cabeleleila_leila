@@ -14,18 +14,18 @@ const (
 )
 
 type Appointment struct {
-	ID         uint              `gorm:"primaryKey" json:"id"`
-	Customer   Customer          `gorm:"foreignKey:CustomerID"`
-	CustomerID uint              `json:"customer_id"`
-	Services   []Service         `json:"services" gorm:"many2many:appointment_services;"`
-	Date       time.Time         `json:"date"`
-	Status     AppointmentStatus `json:"status"`
-	CreatedAt  time.Time         `json:"created_at"`
-	UpdatedAt  time.Time         `json:"updated_at"`
+	ID        uint              `gorm:"primaryKey" json:"id"`
+	User      User              `gorm:"foreignKey:UserID" json:"user"`
+	UserID    uint              `json:"user_id"`
+	Services  []Service         `json:"services" gorm:"many2many:appointment_services;"`
+	Date      time.Time         `json:"date"`
+	Status    AppointmentStatus `json:"status"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
 }
 
 type AppointmentFilter struct {
-	CustomerID *uint      `json:"customer_id"`
-	StartDate  *time.Time `json:"start_date"`
-	EndDate    *time.Time `json:"end_date"`
+	UserID    *uint      `json:"user_id"`
+	StartDate *time.Time `json:"start_date"`
+	EndDate   *time.Time `json:"end_date"`
 }

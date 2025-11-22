@@ -20,7 +20,6 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	// Migrate the schema
 	err = db.AutoMigrate(
 		&models.User{},
-		&models.Customer{},
 		&models.Service{},
 		&models.Appointment{},
 	)
@@ -42,16 +41,6 @@ func createTestUser(t *testing.T, db *gorm.DB, email string) models.User {
 	return user
 }
 
-func createTestCustomer(t *testing.T, db *gorm.DB, userID uint) models.Customer {
-	customer := models.Customer{
-		UserID:   userID,
-		IsActive: true,
-	}
-	result := db.Create(&customer)
-	require.NoError(t, result.Error, "failed to create test customer")
-	return customer
-}
-
 func createTestService(t *testing.T, db *gorm.DB, name string, price float64, duration int) models.Service {
 	service := models.Service{
 		Name:            name,
@@ -63,12 +52,12 @@ func createTestService(t *testing.T, db *gorm.DB, name string, price float64, du
 	return service
 }
 
-func createTestAppointment(t *testing.T, db *gorm.DB, customerID uint, services []models.Service, date time.Time) models.Appointment {
+func createTestAppointment(t *testing.T, db *gorm.DB, userID uint, services []models.Service, date time.Time) models.Appointment {
 	appointment := models.Appointment{
-		CustomerID: customerID,
-		Services:   services,
-		Date:       date,
-		Status:     models.StatusPending,
+		UserID:   userID,
+		Services: services,
+		Date:     date,
+		Status:   models.StatusPending,
 	}
 	result := db.Create(&appointment)
 	require.NoError(t, result.Error, "failed to create test appointment")
@@ -86,20 +75,19 @@ func TestAppointmentRepository_Create(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
 	appointment := models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service},
-		Date:       time.Now().Add(24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
 	}
 
 	created, err := repo.Create(appointment)
 	assert.NoError(t, err)
 	assert.NotZero(t, created.ID)
-	assert.Equal(t, customer.ID, created.CustomerID)
+	assert.Equal(t, user.ID, created.UserID)
 	assert.Equal(t, models.StatusPending, created.Status)
 }
 
@@ -109,25 +97,24 @@ func TestAppointmentRepository_FindByID(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
 	tomorrow := time.Now().Add(24 * time.Hour)
 	created, err := repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service},
-		Date:       tomorrow,
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     tomorrow,
+		Status:   models.StatusPending,
 	})
 	require.NoError(t, err)
 
 	found, err := repo.FindByID(created.ID)
 	assert.NoError(t, err)
 	assert.Equal(t, created.ID, found.ID)
-	assert.Equal(t, customer.ID, found.CustomerID)
+	assert.Equal(t, user.ID, found.UserID)
 	assert.Equal(t, models.StatusPending, found.Status)
-	// Verify customer is preloaded
-	assert.Equal(t, customer.ID, found.Customer.ID)
+	// Verify user is preloaded
+	assert.Equal(t, user.ID, found.User.ID)
 	// Verify services are preloaded
 	assert.Len(t, found.Services, 1)
 	assert.Equal(t, service.ID, found.Services[0].ID)
@@ -149,15 +136,14 @@ func TestAppointmentRepository_Update(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
 	tomorrow := time.Now().Add(24 * time.Hour)
 	created, err := repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service},
-		Date:       tomorrow,
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     tomorrow,
+		Status:   models.StatusPending,
 	})
 	require.NoError(t, err)
 
@@ -178,9 +164,9 @@ func TestAppointmentRepository_Update_NonExistent(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	nonExistent := models.Appointment{
-		ID:         9999,
-		CustomerID: 1,
-		Status:     models.StatusConfirmed,
+		ID:     9999,
+		UserID: 1,
+		Status: models.StatusConfirmed,
 	}
 
 	// Update should not fail but also won't update anything
@@ -194,10 +180,8 @@ func TestAppointmentRepository_FindCustomerAppointmentsInWeek(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user1 := createTestUser(t, db, "customer1@example.com")
-	customer1 := createTestCustomer(t, db, user1.ID)
 
 	user2 := createTestUser(t, db, "customer2@example.com")
-	customer2 := createTestCustomer(t, db, user2.ID)
 
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
@@ -209,35 +193,35 @@ func TestAppointmentRepository_FindCustomerAppointmentsInWeek(t *testing.T) {
 	dayAfter8 := baseTime.Add(8 * 24 * time.Hour) // next Thursday
 
 	repo.Create(models.Appointment{
-		CustomerID: customer1.ID,
-		Services:   []models.Service{service},
-		Date:       dayAfter,
-		Status:     models.StatusPending,
+		UserID:   user1.ID,
+		Services: []models.Service{service},
+		Date:     dayAfter,
+		Status:   models.StatusPending,
 	})
 	repo.Create(models.Appointment{
-		CustomerID: customer1.ID,
-		Services:   []models.Service{service},
-		Date:       dayAfter2,
-		Status:     models.StatusPending,
+		UserID:   user1.ID,
+		Services: []models.Service{service},
+		Date:     dayAfter2,
+		Status:   models.StatusPending,
 	})
 	repo.Create(models.Appointment{
-		CustomerID: customer1.ID,
-		Services:   []models.Service{service},
-		Date:       dayAfter8,
-		Status:     models.StatusPending,
+		UserID:   user1.ID,
+		Services: []models.Service{service},
+		Date:     dayAfter8,
+		Status:   models.StatusPending,
 	})
 
-	// Create appointment for customer2 in the period
+	// Create appointment for user2 in the period
 	repo.Create(models.Appointment{
-		CustomerID: customer2.ID,
-		Services:   []models.Service{service},
-		Date:       dayAfter,
-		Status:     models.StatusPending,
+		UserID:   user2.ID,
+		Services: []models.Service{service},
+		Date:     dayAfter,
+		Status:   models.StatusPending,
 	})
 
-	// Test: Get customer1's appointments for this week (Thursday to Sunday = 4 days)
+	// Test: Get user1's appointments for this week (Thursday to Sunday = 4 days)
 	weekEnd := weekStart.Add(4 * 24 * time.Hour)
-	appointments, err := repo.FindCustomerAppointmentsInWeek(customer1.ID, weekStart, weekEnd)
+	appointments, err := repo.FindUserAppointmentsInWeek(user1.ID, weekStart, weekEnd)
 	assert.NoError(t, err)
 	assert.Len(t, appointments, 2) // Friday and Saturday
 
@@ -254,13 +238,12 @@ func TestAppointmentRepository_FindCustomerAppointmentsInWeek_NoResults(t *testi
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 
 	now := time.Now()
 	weekStart := now.AddDate(0, 0, -int(now.Weekday())+1)
 	weekEnd := weekStart.AddDate(0, 0, 6).Add(24 * time.Hour)
 
-	appointments, err := repo.FindCustomerAppointmentsInWeek(customer.ID, weekStart, weekEnd)
+	appointments, err := repo.FindUserAppointmentsInWeek(user.ID, weekStart, weekEnd)
 	assert.NoError(t, err)
 	assert.Len(t, appointments, 0)
 }
@@ -271,10 +254,8 @@ func TestAppointmentRepository_ListByPeriod(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user1 := createTestUser(t, db, "customer1@example.com")
-	customer1 := createTestCustomer(t, db, user1.ID)
 
 	user2 := createTestUser(t, db, "customer2@example.com")
-	customer2 := createTestCustomer(t, db, user2.ID)
 
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
@@ -284,22 +265,22 @@ func TestAppointmentRepository_ListByPeriod(t *testing.T) {
 	fiveDaysLater := now.Add(120 * time.Hour)
 
 	repo.Create(models.Appointment{
-		CustomerID: customer1.ID,
-		Services:   []models.Service{service},
-		Date:       tomorrow,
-		Status:     models.StatusPending,
+		UserID:   user1.ID,
+		Services: []models.Service{service},
+		Date:     tomorrow,
+		Status:   models.StatusPending,
 	})
 	repo.Create(models.Appointment{
-		CustomerID: customer2.ID,
-		Services:   []models.Service{service},
-		Date:       twoDaysLater,
-		Status:     models.StatusConfirmed,
+		UserID:   user2.ID,
+		Services: []models.Service{service},
+		Date:     twoDaysLater,
+		Status:   models.StatusConfirmed,
 	})
 	repo.Create(models.Appointment{
-		CustomerID: customer1.ID,
-		Services:   []models.Service{service},
-		Date:       fiveDaysLater,
-		Status:     models.StatusPending,
+		UserID:   user1.ID,
+		Services: []models.Service{service},
+		Date:     fiveDaysLater,
+		Status:   models.StatusPending,
 	})
 
 	// List appointments in a 3-day period
@@ -311,8 +292,8 @@ func TestAppointmentRepository_ListByPeriod(t *testing.T) {
 	for _, apt := range appointments {
 		assert.Len(t, apt.Services, 1)
 		assert.Equal(t, service.ID, apt.Services[0].ID)
-		// Verify customer is preloaded
-		assert.NotZero(t, apt.Customer.ID)
+		// Verify user is preloaded
+		assert.NotZero(t, apt.User.ID)
 	}
 }
 
@@ -322,15 +303,14 @@ func TestAppointmentRepository_ListByPeriod_NoResults(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
 	now := time.Now()
 	repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service},
-		Date:       now.Add(10 * 24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     now.Add(10 * 24 * time.Hour),
+		Status:   models.StatusPending,
 	})
 
 	appointments, err := repo.ListByPeriod(now, now.Add(3*24*time.Hour))
@@ -344,10 +324,8 @@ func TestAppointmentRepository_ListAll(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user1 := createTestUser(t, db, "customer1@example.com")
-	customer1 := createTestCustomer(t, db, user1.ID)
 
 	user2 := createTestUser(t, db, "customer2@example.com")
-	customer2 := createTestCustomer(t, db, user2.ID)
 
 	service1 := createTestService(t, db, "Haircut", 50.00, 30)
 	service2 := createTestService(t, db, "Coloring", 80.00, 60)
@@ -356,31 +334,31 @@ func TestAppointmentRepository_ListAll(t *testing.T) {
 
 	// Create multiple appointments
 	repo.Create(models.Appointment{
-		CustomerID: customer1.ID,
-		Services:   []models.Service{service1},
-		Date:       now.Add(24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user1.ID,
+		Services: []models.Service{service1},
+		Date:     now.Add(24 * time.Hour),
+		Status:   models.StatusPending,
 	})
 	repo.Create(models.Appointment{
-		CustomerID: customer2.ID,
-		Services:   []models.Service{service1, service2},
-		Date:       now.Add(48 * time.Hour),
-		Status:     models.StatusConfirmed,
+		UserID:   user2.ID,
+		Services: []models.Service{service1, service2},
+		Date:     now.Add(48 * time.Hour),
+		Status:   models.StatusConfirmed,
 	})
 	repo.Create(models.Appointment{
-		CustomerID: customer1.ID,
-		Services:   []models.Service{service2},
-		Date:       now.Add(72 * time.Hour),
-		Status:     models.StatusDone,
+		UserID:   user1.ID,
+		Services: []models.Service{service2},
+		Date:     now.Add(72 * time.Hour),
+		Status:   models.StatusDone,
 	})
 
 	appointments, err := repo.ListAll()
 	assert.NoError(t, err)
 	assert.Len(t, appointments, 3)
 
-	// Verify all appointments have customers and services preloaded
+	// Verify all appointments have users and services preloaded
 	for _, apt := range appointments {
-		assert.NotZero(t, apt.Customer.ID)
+		assert.NotZero(t, apt.User.ID)
 		assert.NotEmpty(t, apt.Services)
 	}
 
@@ -411,14 +389,13 @@ func TestAppointmentRepository_StatusTransitions(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
 	created, err := repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service},
-		Date:       time.Now().Add(24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
 	})
 	require.NoError(t, err)
 
@@ -453,17 +430,16 @@ func TestAppointmentRepository_MultipleServices(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 
 	service1 := createTestService(t, db, "Haircut", 50.00, 30)
 	service2 := createTestService(t, db, "Coloring", 80.00, 60)
 	service3 := createTestService(t, db, "Treatment", 40.00, 45)
 
 	created, err := repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service1, service2, service3},
-		Date:       time.Now().Add(24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service1, service2, service3},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
 	})
 	require.NoError(t, err)
 
@@ -488,25 +464,23 @@ func TestAppointmentRepository_CustomerRelation(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
 	created, err := repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service},
-		Date:       time.Now().Add(24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
 	})
 	require.NoError(t, err)
 
 	found, err := repo.FindByID(created.ID)
 	assert.NoError(t, err)
 
-	// Verify customer is preloaded
-	assert.NotZero(t, found.Customer.ID)
-	assert.Equal(t, customer.ID, found.Customer.ID)
-	assert.Equal(t, user.ID, found.Customer.UserID)
-	assert.Equal(t, true, found.Customer.IsActive)
+	// Verify user is preloaded
+	assert.NotZero(t, found.User.ID)
+	assert.Equal(t, user.ID, found.User.ID)
+	assert.Equal(t, true, found.User.IsActive)
 }
 
 // TestAppointmentRepository_ConcurrentCustomers tests appointments for multiple customers
@@ -514,24 +488,23 @@ func TestAppointmentRepository_ConcurrentCustomers(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewAppointmentRepository(db)
 
-	// Create 5 customers
-	customers := make([]models.Customer, 5)
+	// Create 5 users
+	users := make([]models.User, 5)
 	for i := 0; i < 5; i++ {
-		user := createTestUser(t, db, "customer"+string(rune(i))+"@example.com")
-		customers[i] = createTestCustomer(t, db, user.ID)
+		users[i] = createTestUser(t, db, "customer"+string(rune(i))+"@example.com")
 	}
 
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 	now := time.Now()
 
-	// Create 3 appointments for each customer
-	for i, customer := range customers {
+	// Create 3 appointments for each user
+	for i, user := range users {
 		for j := 0; j < 3; j++ {
 			repo.Create(models.Appointment{
-				CustomerID: customer.ID,
-				Services:   []models.Service{service},
-				Date:       now.Add(time.Duration(i*24+j) * time.Hour),
-				Status:     models.StatusPending,
+				UserID:   user.ID,
+				Services: []models.Service{service},
+				Date:     now.Add(time.Duration(i*24+j) * time.Hour),
+				Status:   models.StatusPending,
 			})
 		}
 	}
@@ -540,12 +513,12 @@ func TestAppointmentRepository_ConcurrentCustomers(t *testing.T) {
 	all, _ := repo.ListAll()
 	assert.Len(t, all, 15)
 
-	// Verify each customer has exactly 3 appointments
-	for _, customer := range customers {
+	// Verify each user has exactly 3 appointments
+	for _, user := range users {
 		weekStart := now
 		weekEnd := now.Add(30 * 24 * time.Hour)
-		customerApts, _ := repo.FindCustomerAppointmentsInWeek(customer.ID, weekStart, weekEnd)
-		assert.Len(t, customerApts, 3)
+		userApts, _ := repo.FindUserAppointmentsInWeek(user.ID, weekStart, weekEnd)
+		assert.Len(t, userApts, 3)
 	}
 }
 
@@ -555,14 +528,13 @@ func TestAppointmentRepository_EmptyAppointmentNoServices(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 
 	// Create appointment without services
 	created, err := repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{},
-		Date:       time.Now().Add(24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
 	})
 	require.NoError(t, err)
 
@@ -577,15 +549,14 @@ func TestAppointmentRepository_TimestampFields(t *testing.T) {
 	repo := NewAppointmentRepository(db)
 
 	user := createTestUser(t, db, "customer@example.com")
-	customer := createTestCustomer(t, db, user.ID)
 	service := createTestService(t, db, "Haircut", 50.00, 30)
 
 	beforeCreate := time.Now()
 	created, err := repo.Create(models.Appointment{
-		CustomerID: customer.ID,
-		Services:   []models.Service{service},
-		Date:       time.Now().Add(24 * time.Hour),
-		Status:     models.StatusPending,
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
 	})
 	afterCreate := time.Now()
 

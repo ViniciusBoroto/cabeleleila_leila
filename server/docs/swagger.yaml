@@ -152,10 +152,6 @@ definitions:
     properties:
       created_at:
         type: string
-      customer:
-        $ref: '#/definitions/models.Customer'
-      customer_id:
-        type: integer
       date:
         type: string
       id:
@@ -168,6 +164,10 @@ definitions:
         $ref: '#/definitions/models.AppointmentStatus'
       updated_at:
         type: string
+      user:
+        $ref: '#/definitions/models.User'
+      user_id:
+        type: integer
     type: object
   models.AppointmentStatus:
     enum:
@@ -181,19 +181,6 @@ definitions:
     - StatusConfirmed
     - StatusDone
     - StatusCanceled
-  models.Customer:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: integer
-      is_active:
-        type: boolean
-      updated_at:
-        type: string
-      user_id:
-        type: integer
-    type: object
   models.Service:
     properties:
       duration_minutes:
@@ -204,6 +191,25 @@ definitions:
         type: string
       price:
         type: number
+    type: object
+  models.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        $ref: '#/definitions/models.UserRole'
+      updated_at:
+        type: string
     type: object
   models.UserRole:
     enum:

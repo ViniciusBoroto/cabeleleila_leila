@@ -19,10 +19,9 @@ type authService struct {
 }
 
 type CustomClaims struct {
-	UserID     uint            `json:"user_id"`
-	Email      string          `json:"email"`
-	Role       models.UserRole `json:"role"`
-	CustomerID *uint           `json:"customer_id,omitempty"`
+	UserID uint            `json:"user_id"`
+	Email  string          `json:"email"`
+	Role   models.UserRole `json:"role"`
 	jwt.RegisteredClaims
 }
 

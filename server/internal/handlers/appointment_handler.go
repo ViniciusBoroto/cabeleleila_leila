@@ -100,6 +100,11 @@ func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
+type CreationAppointmentResponse struct {
+	Appointment models.Appointment  `json:"appointment"`
+	Suggestion  *models.Appointment `json:"suggestion,omitempty"`
+}
+
 // CreateAppointment godoc
 // @Summary      Cria um novo agendamento
 // @Description  Permite agendar um ou mais serviços
@@ -115,9 +120,8 @@ func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
 // @Router       /appointments [post]
 func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 	var req struct {
-		CustomerID uint             `json:"customer_id"`
-		Services   []models.Service `json:"service"`
-		Date       time.Time        `json:"date"`
+		Services []models.Service `json:"service"`
+		Date     time.Time        `json:"date"`
 	}
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -137,29 +141,26 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 		return
 	}
 
-	// Determine customer ID based on role
-	var customerID uint
+	// Determine user ID based on role
+	var appointmentUserID uint
 	if role == models.RoleAdmin {
-		// Admins can create appointments for any customer
-		customerID = req.CustomerID
-		if customerID == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id required for admin"})
-			return
-		}
+		// Admins can create appointments for themselves, but should use userID from token
+		appointmentUserID = userID.(uint)
 	} else {
 		// Regular customers can only create for themselves
-		// Note: You may need to map userID to customerID if they're different
-		customerID = userID.(uint)
+		appointmentUserID = userID.(uint)
 	}
 
-	ap, suggestion, err := h.svc.CreateAppointment(customerID, req.Services, req.Date)
+	ap, suggestion, err := h.svc.CreateAppointment(appointmentUserID, req.Services, req.Date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	resp := gin.H{"appointment": ap, "suggestion": suggestion}
-	c.JSON(http.StatusCreated, resp)
+	c.JSON(http.StatusCreated, CreationAppointmentResponse{
+		Appointment: ap,
+		Suggestion:  suggestion,
+	})
 }
 
 // UpdateAppointment godoc
@@ -203,7 +204,7 @@ func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 	}
 
 	// Customers can only update their own appointments, admins can update any
-	if role != models.RoleAdmin && req.CustomerID != userID.(uint) {
+	if role != models.RoleAdmin && req.UserID != userID.(uint) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "you can only update your own appointments"})
 		return
 	}

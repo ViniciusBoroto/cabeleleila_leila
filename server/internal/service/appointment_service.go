@@ -9,7 +9,7 @@ import (
 )
 
 type AppointmentService interface {
-	CreateAppointment(customerID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, res error)
+	CreateAppointment(userID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, res error)
 	UpdateAppointment(id uint, newAp models.Appointment) (models.Appointment, error)
 	ListHistory(start, end time.Time) ([]models.Appointment, error)
 	ListAll() ([]models.Appointment, error)
@@ -35,21 +35,21 @@ func getWeekRange(date time.Time) (time.Time, time.Time) {
 	return start, end
 }
 
-func (s *appointmentService) CreateAppointment(customerID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, err error) {
+func (s *appointmentService) CreateAppointment(userID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, err error) {
 	weekStart, weekEnd := getWeekRange(date)
 
 	// Sugestão de unificação de datas
-	existing, _ := s.repo.FindCustomerAppointmentsInWeek(customerID, weekStart, weekEnd)
+	existing, _ := s.repo.FindUserAppointmentsInWeek(userID, weekStart, weekEnd)
 	if len(existing) > 0 {
 		first := existing[0]
 		suggestion = &first
 	}
 
 	ap := models.Appointment{
-		CustomerID: customerID,
-		Services:   services,
-		Date:       date,
-		Status:     models.StatusPending,
+		UserID:   userID,
+		Services: services,
+		Date:     date,
+		Status:   models.StatusPending,
 	}
 
 	created, err = s.repo.Create(ap)
@@ -64,7 +64,6 @@ func (s *appointmentService) UpdateAppointment(id uint, newAp models.Appointment
 		return ap, err
 	}
 
-	// regras da Leila
 	diff := time.Until(ap.Date)
 	if diff < (48 * time.Hour) {
 		return ap, errors.New("alterações só podem ser feitas por telefone")

@@ -10,7 +10,7 @@ type AppointmentRepository interface {
 	Create(ap models.Appointment) (models.Appointment, error)
 	Update(ap models.Appointment) error
 	FindByID(id uint) (models.Appointment, error)
-	FindCustomerAppointmentsInWeek(customerID uint, weekStart, weekEnd time.Time) ([]models.Appointment, error)
+	FindUserAppointmentsInWeek(userID uint, weekStart, weekEnd time.Time) ([]models.Appointment, error)
 	ListByPeriod(start, end time.Time) ([]models.Appointment, error)
 	ListAll() ([]models.Appointment, error)
 }

@@ -18,13 +18,13 @@ func TestCreateService_WithSuggestion(t *testing.T) {
 	existentAp := models.Appointment{ID: 2, Date: time.Now().AddDate(0, 0, 2)}
 
 	mockRepo.EXPECT().Create(gomock.Any()).Return(models.Appointment{ID: 5}, nil)
-	mockRepo.EXPECT().FindCustomerAppointmentsInWeek(gomock.Any(), gomock.Any(), gomock.Any()).Return([]models.Appointment{existentAp}, nil)
+	mockRepo.EXPECT().FindUserAppointmentsInWeek(gomock.Any(), gomock.Any(), gomock.Any()).Return([]models.Appointment{existentAp}, nil)
 
 	ap, suggestion, err := apSrv.CreateAppointment(1, []models.Service{{ID: 1, Name: "Corte"}}, time.Now().AddDate(0, 0, 3))
 	assert.NoError(t, err)
 	assert.NotNil(t, suggestion)
 	assert.Equal(t, uint(5), ap.ID)
-	assert.Equal(t, existentAp.Date, *suggestion)
+	assert.Equal(t, existentAp.Date, suggestion.Date)
 }
 
 func TestCreateService_NoSuggestion(t *testing.T) {
@@ -34,7 +34,7 @@ func TestCreateService_NoSuggestion(t *testing.T) {
 	apSrv := NewAppointmentService(mockRepo)
 
 	mockRepo.EXPECT().Create(gomock.Any()).Return(models.Appointment{ID: 5}, nil)
-	mockRepo.EXPECT().FindCustomerAppointmentsInWeek(gomock.Any(), gomock.Any(), gomock.Any()).Return([]models.Appointment{}, nil)
+	mockRepo.EXPECT().FindUserAppointmentsInWeek(gomock.Any(), gomock.Any(), gomock.Any()).Return([]models.Appointment{}, nil)
 
 	ap, suggestion, err := apSrv.CreateAppointment(1, []models.Service{{ID: 1, Name: "Corte"}}, time.Now().AddDate(0, 0, 3))
 	assert.NoError(t, err)
