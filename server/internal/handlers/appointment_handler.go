@@ -117,7 +117,7 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 	var req struct {
 		CustomerID uint             `json:"customer_id"`
 		Services   []models.Service `json:"service"`
-		Date       string           `json:"date"`
+		Date       time.Time        `json:"date"`
 	}
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -152,13 +152,7 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 		customerID = userID.(uint)
 	}
 
-	date, err := time.Parse("2006-01-02 15:04", req.Date)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format"})
-		return
-	}
-
-	ap, suggestion, err := h.svc.CreateAppointment(customerID, req.Services, date)
+	ap, suggestion, err := h.svc.CreateAppointment(customerID, req.Services, req.Date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

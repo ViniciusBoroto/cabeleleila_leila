@@ -82,6 +82,180 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/services": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Create a new service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Create a new service (admin only)",
+                "parameters": [
+                    {
+                        "description": "Service data",
+                        "name": "service",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateServiceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServiceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/services/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update a specific service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Update service (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated service data",
+                        "name": "service",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateServiceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServiceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Delete a specific service",
+                "tags": [
+                    "services"
+                ],
+                "summary": "Delete service (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
             "get": {
                 "security": [
@@ -620,9 +794,109 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/services": {
+            "get": {
+                "description": "Retrieve all available services",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "List all services",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.ServiceResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/services/{id}": {
+            "get": {
+                "description": "Retrieve a specific service by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Get service by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServiceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "handlers.CreateServiceRequest": {
+            "type": "object",
+            "required": [
+                "duration_minutes",
+                "name",
+                "price"
+            ],
+            "properties": {
+                "duration_minutes": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 0
+                }
+            }
+        },
         "handlers.CreateUserRequest": {
             "type": "object",
             "required": [
@@ -725,6 +999,44 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/handlers.UserInfo"
+                }
+            }
+        },
+        "handlers.ServiceResponse": {
+            "type": "object",
+            "properties": {
+                "duration_minutes": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.UpdateServiceRequest": {
+            "type": "object",
+            "required": [
+                "duration_minutes",
+                "name",
+                "price"
+            ],
+            "properties": {
+                "duration_minutes": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 0
                 }
             }
         },

@@ -1,5 +1,20 @@
 basePath: /api
 definitions:
+  handlers.CreateServiceRequest:
+    properties:
+      duration_minutes:
+        minimum: 1
+        type: integer
+      name:
+        type: string
+      price:
+        minimum: 0
+        type: number
+    required:
+    - duration_minutes
+    - name
+    - price
+    type: object
   handlers.CreateUserRequest:
     properties:
       email:
@@ -69,6 +84,32 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/handlers.UserInfo'
+    type: object
+  handlers.ServiceResponse:
+    properties:
+      duration_minutes:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: number
+    type: object
+  handlers.UpdateServiceRequest:
+    properties:
+      duration_minutes:
+        minimum: 1
+        type: integer
+      name:
+        type: string
+      price:
+        minimum: 0
+        type: number
+    required:
+    - duration_minutes
+    - name
+    - price
     type: object
   handlers.UpdateUserRequest:
     properties:
@@ -223,6 +264,117 @@ paths:
       summary: Lista agendamentos recebidos
       tags:
       - admin
+  /admin/services:
+    post:
+      consumes:
+      - application/json
+      description: Create a new service
+      parameters:
+      - description: Service data
+        in: body
+        name: service
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.ServiceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create a new service (admin only)
+      tags:
+      - services
+  /admin/services/{id}:
+    delete:
+      description: Delete a specific service
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete service (admin only)
+      tags:
+      - services
+    put:
+      consumes:
+      - application/json
+      description: Update a specific service
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated service data
+        in: body
+        name: service
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServiceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Update service (admin only)
+      tags:
+      - services
   /admin/users:
     get:
       description: Retrieve all users from the system
@@ -568,6 +720,58 @@ paths:
       summary: Registra um novo cliente
       tags:
       - auth
+  /services:
+    get:
+      description: Retrieve all available services
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.ServiceResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all services
+      tags:
+      - services
+  /services/{id}:
+    get:
+      description: Retrieve a specific service by ID
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServiceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get service by ID
+      tags:
+      - services
 schemes:
 - http
 swagger: "2.0"

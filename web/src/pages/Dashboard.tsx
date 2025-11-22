@@ -1,117 +1,14 @@
 import React, { useState, useEffect } from "react";
 
-// Ícones SVG
-const Calendar = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-    />
-  </svg>
-);
-
-const Plus = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 4v16m8-8H4"
-    />
-  </svg>
-);
-
-const Clock = ({ className = "w-4 h-4" }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
-  </svg>
-);
-
-const CheckCircle = ({ className = "w-3 h-3" }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
-  </svg>
-);
-
-const XCircle = ({ className = "w-3 h-3" }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
-  </svg>
-);
-
-const AlertCircle = ({ className = "w-3 h-3" }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
-  </svg>
-);
-
-const X = ({ className = "w-6 h-6" }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M6 18L18 6M6 6l12 12"
-    />
-  </svg>
-);
+import {
+  CalendarIcon,
+  PlusIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationCircleIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 
 // Tipos baseados na API
 interface Service {
@@ -140,8 +37,14 @@ interface Appointment {
 
 const API_BASE = "http://localhost:8080/api";
 
+const formatDateToISO = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toISOString();
+};
+
 const SalonDashboard = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -150,17 +53,9 @@ const SalonDashboard = () => {
   const [newAppointmentDate, setNewAppointmentDate] = useState("");
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
 
-  // Lista de serviços disponíveis (você pode adaptar conforme sua necessidade)
-  const availableServices: Service[] = [
-    { id: 1, name: "Corte de Cabelo", price: 50.0, duration_minutes: 30 },
-    { id: 2, name: "Coloração", price: 120.0, duration_minutes: 90 },
-    { id: 3, name: "Escova", price: 40.0, duration_minutes: 45 },
-    { id: 4, name: "Hidratação", price: 80.0, duration_minutes: 60 },
-    { id: 5, name: "Manicure", price: 35.0, duration_minutes: 40 },
-  ];
-
   useEffect(() => {
     fetchAppointments();
+    fetchServices();
   }, []);
 
   const fetchAppointments = async () => {
@@ -192,6 +87,25 @@ const SalonDashboard = () => {
     }
   };
 
+  const fetchServices = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/services`, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableServices(data || []);
+      } else {
+        console.error("Erro ao carregar serviços");
+      }
+    } catch (err) {
+      console.error("Erro de conexão ao carregar serviços:", err);
+    }
+  };
+
   const handleCreateAppointment = async () => {
     const token = localStorage.getItem("token");
     if (!token || selectedServices.length === 0) return;
@@ -211,7 +125,7 @@ const SalonDashboard = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          date: newAppointmentDate,
+          date: formatDateToISO(newAppointmentDate),
           services: services,
         }),
       });
@@ -245,22 +159,22 @@ const SalonDashboard = () => {
   const getStatusBadge = (status: string) => {
     const badges = {
       PENDING: {
-        icon: AlertCircle,
+        icon: ExclamationCircleIcon,
         color: "bg-yellow-100 text-yellow-800",
         text: "Pendente",
       },
       CONFIRMED: {
-        icon: CheckCircle,
+        icon: CheckCircleIcon,
         color: "bg-blue-100 text-blue-800",
         text: "Confirmado",
       },
       DONE: {
-        icon: CheckCircle,
+        icon: CheckCircleIcon,
         color: "bg-green-100 text-green-800",
         text: "Concluído",
       },
       CANCELED: {
-        icon: XCircle,
+        icon: XCircleIcon,
         color: "bg-red-100 text-red-800",
         text: "Cancelado",
       },
@@ -322,7 +236,7 @@ const SalonDashboard = () => {
             onClick={() => setShowNewAppointment(true)}
             className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
           >
-            <Plus className="w-5 h-5" />
+            <PlusIcon className="w-5 h-5" />
             Novo Agendamento
           </button>
         </div>
@@ -345,7 +259,7 @@ const SalonDashboard = () => {
         {/* Lista de Agendamentos */}
         {!loading && appointments.length === 0 && (
           <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <CalendarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
               Nenhum agendamento encontrado
             </h3>
@@ -370,13 +284,13 @@ const SalonDashboard = () => {
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-start gap-3">
-                    <Calendar className="w-5 h-5 text-purple-600 mt-1" />
+                    <CalendarIcon className="w-5 h-5 text-purple-600 mt-1" />
                     <div>
                       <h3 className="font-semibold text-lg text-gray-900">
                         {formatDate(appointment.date)}
                       </h3>
                       <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                        <Clock className="w-4 h-4" />
+                        <ClockIcon className="w-4 h-4" />
                         <span>
                           {calculateTotalDuration(appointment.services)} minutos
                         </span>
@@ -432,7 +346,7 @@ const SalonDashboard = () => {
                   onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-6 h-6" />
+                  <XMarkIcon className="w-6 h-6" />
                 </button>
               </div>
 
@@ -459,38 +373,44 @@ const SalonDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Selecione os Serviços
                   </label>
-                  <div className="space-y-2">
-                    {availableServices.map((service) => (
-                      <label
-                        key={service.id}
-                        className={`flex items-center justify-between p-4 border-2 rounded-lg cursor-pointer transition ${
-                          selectedServices.includes(service.id)
-                            ? "border-purple-600 bg-purple-50"
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedServices.includes(service.id)}
-                            onChange={() => toggleService(service.id)}
-                            className="w-5 h-5 text-purple-600 rounded focus:ring-purple-600"
-                          />
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {service.name}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {service.duration_minutes} minutos
-                            </p>
+                  {availableServices.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Carregando serviços disponíveis...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {availableServices.map((service) => (
+                        <label
+                          key={service.id}
+                          className={`flex items-center justify-between p-4 border-2 rounded-lg cursor-pointer transition ${
+                            selectedServices.includes(service.id)
+                              ? "border-purple-600 bg-purple-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedServices.includes(service.id)}
+                              onChange={() => toggleService(service.id)}
+                              className="w-5 h-5 text-purple-600 rounded focus:ring-purple-600"
+                            />
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {service.name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {service.duration_minutes} minutos
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <span className="font-semibold text-purple-600">
-                          R$ {service.price.toFixed(2)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                          <span className="font-semibold text-purple-600">
+                            R$ {service.price.toFixed(2)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {selectedServices.length > 0 && (
