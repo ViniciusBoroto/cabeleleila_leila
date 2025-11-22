@@ -26,24 +26,24 @@ func (r *sqlAppointmentRepo) Update(ap models.Appointment) error {
 
 func (r *sqlAppointmentRepo) FindByID(id uint) (models.Appointment, error) {
 	var ap models.Appointment
-	err := r.db.Preload("Customer").First(&ap, id).Error
+	err := r.db.Preload("Customer").Preload("Services").First(&ap, id).Error
 	return ap, err
 }
 
 func (r *sqlAppointmentRepo) FindCustomerAppointmentsInWeek(customerID uint, weekStart, weekEnd time.Time) ([]models.Appointment, error) {
 	var list []models.Appointment
-	err := r.db.Where("customer_id = ? AND date BETWEEN ? AND ?", customerID, weekStart, weekEnd).Find(&list).Error
+	err := r.db.Preload("Customer").Preload("Services").Where("customer_id = ? AND date BETWEEN ? AND ?", customerID, weekStart, weekEnd).Find(&list).Error
 	return list, err
 }
 
 func (r *sqlAppointmentRepo) ListByPeriod(start, end time.Time) ([]models.Appointment, error) {
 	var list []models.Appointment
-	err := r.db.Where("date BETWEEN ? AND ?", start, end).Find(&list).Error
+	err := r.db.Preload("Customer").Preload("Services").Where("date BETWEEN ? AND ?", start, end).Find(&list).Error
 	return list, err
 }
 
 func (r *sqlAppointmentRepo) ListAll() ([]models.Appointment, error) {
 	var list []models.Appointment
-	err := r.db.Find(&list).Error
+	err := r.db.Preload("Customer").Preload("Services").Find(&list).Error
 	return list, err
 }
