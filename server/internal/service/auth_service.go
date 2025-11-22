@@ -80,7 +80,6 @@ func (s *authService) ValidateTokenWithRole(tokenString string, allowedRoles ...
 		return claims, nil
 	}
 
-	// Check if user's role is in allowed roles
 	for _, role := range allowedRoles {
 		if claims.Role == role {
 			return claims, nil
