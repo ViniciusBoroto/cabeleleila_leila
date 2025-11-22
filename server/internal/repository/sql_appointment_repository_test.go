@@ -575,3 +575,124 @@ func TestAppointmentRepository_TimestampFields(t *testing.T) {
 	assert.True(t, found.UpdatedAt.After(beforeUpdate.Add(-1*time.Second)) && found.UpdatedAt.Before(afterUpdate.Add(1*time.Second)))
 	assert.True(t, found.UpdatedAt.After(created.UpdatedAt) || found.UpdatedAt.Equal(created.UpdatedAt))
 }
+
+// TestAppointmentRepository_Create_UserIsLoaded tests that created appointment includes loaded user
+func TestAppointmentRepository_Create_UserIsLoaded(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewAppointmentRepository(db)
+
+	user := createTestUser(t, db, "customer@example.com")
+	service := createTestService(t, db, "Haircut", 50.00, 30)
+
+	created, err := repo.Create(models.Appointment{
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
+	})
+
+	assert.NoError(t, err)
+	// User must not be nil and must have populated data
+	assert.NotNil(t, created.User)
+	assert.NotZero(t, created.User.ID)
+	assert.Equal(t, "customer@example.com", created.User.Email)
+	assert.Equal(t, "Test User", created.User.Name)
+}
+
+// TestAppointmentRepository_Create_ServicesIsNotNil tests that services are never nil
+func TestAppointmentRepository_Create_ServicesIsNotNil(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewAppointmentRepository(db)
+
+	user := createTestUser(t, db, "customer@example.com")
+	service := createTestService(t, db, "Haircut", 50.00, 30)
+
+	created, err := repo.Create(models.Appointment{
+		UserID:   user.ID,
+		Services: []models.Service{service},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
+	})
+
+	assert.NoError(t, err)
+	// Services must not be nil
+	assert.NotNil(t, created.Services)
+	assert.Greater(t, len(created.Services), 0)
+}
+
+// TestAppointmentRepository_Create_SavesM2MRelationship tests that appointment_services m2m records are saved
+func TestAppointmentRepository_Create_SavesM2MRelationship(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewAppointmentRepository(db)
+
+	user := createTestUser(t, db, "customer@example.com")
+	service1 := createTestService(t, db, "Haircut", 50.00, 30)
+	service2 := createTestService(t, db, "Coloring", 80.00, 60)
+	service3 := createTestService(t, db, "Treatment", 40.00, 45)
+
+	created, err := repo.Create(models.Appointment{
+		UserID:   user.ID,
+		Services: []models.Service{service1, service2, service3},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
+	})
+
+	assert.NoError(t, err)
+
+	// Verify all 3 services are in the response
+	assert.Equal(t, 3, len(created.Services))
+
+	// Verify by ID
+	found, err := repo.FindByID(created.ID)
+	assert.NoError(t, err)
+
+	// Services should be fully preloaded
+	assert.NotNil(t, found.Services)
+	assert.Equal(t, 3, len(found.Services))
+
+	// Verify each service detail
+	serviceMap := make(map[uint]models.Service)
+	for _, s := range found.Services {
+		serviceMap[s.ID] = s
+	}
+
+	assert.True(t, serviceMap[service1.ID].Name == "Haircut")
+	assert.True(t, serviceMap[service2.ID].Name == "Coloring")
+	assert.True(t, serviceMap[service3.ID].Name == "Treatment")
+}
+
+// TestAppointmentRepository_Create_WithMultipleServices tests creating with 3+ services as in original bug
+func TestAppointmentRepository_Create_WithMultipleServices(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewAppointmentRepository(db)
+
+	user := createTestUser(t, db, "customer@example.com")
+	service1 := createTestService(t, db, "Haircut", 50.00, 30)
+	service2 := createTestService(t, db, "Escova", 40.00, 45)
+	service3 := createTestService(t, db, "Coloração", 100.00, 120)
+
+	// Simulate the original bug scenario: creating appointment with 3 services
+	created, err := repo.Create(models.Appointment{
+		UserID:   user.ID,
+		Services: []models.Service{service1, service2, service3},
+		Date:     time.Now().Add(24 * time.Hour),
+		Status:   models.StatusPending,
+	})
+
+	assert.NoError(t, err)
+	assert.NotZero(t, created.ID)
+
+	// Verify the response includes all 3 services (was null in original bug)
+	assert.NotNil(t, created.Services)
+	assert.Equal(t, 3, len(created.Services), "should have all 3 services")
+
+	// Verify user is loaded (was zero-valued in original bug)
+	assert.NotNil(t, created.User)
+	assert.Equal(t, user.ID, created.User.ID, "user should be loaded with correct ID")
+	assert.Equal(t, "customer@example.com", created.User.Email, "user email should be loaded")
+
+	// Verify services are correctly saved in m2m table
+	found, err := repo.FindByID(created.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(found.Services), "all 3 services should be persisted in m2m table")
+}

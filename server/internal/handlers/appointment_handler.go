@@ -120,7 +120,7 @@ type CreationAppointmentResponse struct {
 // @Router       /appointments [post]
 func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 	var req struct {
-		Services []models.Service `json:"service"`
+		Services []models.Service `json:"services"`
 		Date     time.Time        `json:"date"`
 	}
 	if err := c.BindJSON(&req); err != nil {

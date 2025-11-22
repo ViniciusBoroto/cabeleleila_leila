@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 )
 
@@ -13,6 +14,10 @@ const (
 	StatusCanceled  AppointmentStatus = "CANCELED"
 )
 
+var (
+	ErrAppointmentNoServices = errors.New("appointment must have at least one service")
+)
+
 type Appointment struct {
 	ID        uint              `gorm:"primaryKey" json:"id"`
 	User      User              `gorm:"foreignKey:UserID" json:"user"`
@@ -22,6 +27,14 @@ type Appointment struct {
 	Status    AppointmentStatus `json:"status"`
 	CreatedAt time.Time         `json:"created_at"`
 	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+// Validate checks if the appointment is valid
+func (a *Appointment) Validate() error {
+	if len(a.Services) == 0 {
+		return ErrAppointmentNoServices
+	}
+	return nil
 }
 
 type AppointmentFilter struct {

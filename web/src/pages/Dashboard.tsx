@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 import {
   CalendarIcon,
@@ -18,19 +18,17 @@ interface Service {
   duration_minutes: number;
 }
 
-interface Customer {
+interface User {
   id: number;
-  user_id: number;
-  is_active: boolean;
 }
 
 interface Appointment {
   id: number;
-  customer_id: number;
+  user_id: number;
   date: string;
   status: "PENDING" | "CONFIRMED" | "DONE" | "CANCELED";
   services: Service[];
-  customer?: Customer;
+  user?: User;
   created_at?: string;
   updated_at?: string;
 }

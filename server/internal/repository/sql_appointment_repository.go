@@ -17,6 +17,20 @@ func NewAppointmentRepository(db *gorm.DB) AppointmentRepository {
 
 func (r *sqlAppointmentRepo) Create(ap models.Appointment) (models.Appointment, error) {
 	err := r.db.Create(&ap).Error
+	if err != nil {
+		return ap, err
+	}
+
+	// Associate services with appointment (many-to-many)
+	if len(ap.Services) > 0 {
+		err = r.db.Model(&ap).Association("Services").Append(ap.Services)
+		if err != nil {
+			return ap, err
+		}
+	}
+
+	// Reload the appointment with User and Services preloaded
+	err = r.db.Preload("User").Preload("Services").First(&ap, ap.ID).Error
 	return ap, err
 }
 

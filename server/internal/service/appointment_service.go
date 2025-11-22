@@ -36,6 +36,11 @@ func getWeekRange(date time.Time) (time.Time, time.Time) {
 }
 
 func (s *appointmentService) CreateAppointment(userID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, err error) {
+	// Validate that appointment has at least one service
+	if len(services) == 0 {
+		return models.Appointment{}, nil, models.ErrAppointmentNoServices
+	}
+
 	weekStart, weekEnd := getWeekRange(date)
 
 	// Sugestão de unificação de datas
