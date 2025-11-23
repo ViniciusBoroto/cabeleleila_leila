@@ -15,6 +15,7 @@ type AppointmentService interface {
 	ListAll() ([]models.Appointment, error)
 	ConfirmAppointment(id uint) error
 	GetWeeklyPerformance() (int, int, error)
+	MergeAppointments(existingID uint, newServices []models.Service) (models.Appointment, error)
 }
 
 type appointmentService struct {
@@ -43,11 +44,13 @@ func (s *appointmentService) CreateAppointment(userID uint, services []models.Se
 
 	weekStart, weekEnd := getWeekRange(date)
 
-	// Sugestão de unificação de datas
+	// Check for existing appointments in the same week
 	existing, _ := s.repo.FindUserAppointmentsInWeek(userID, weekStart, weekEnd)
 	if len(existing) > 0 {
 		first := existing[0]
 		suggestion = &first
+		// Return suggestion without saving the new appointment
+		return models.Appointment{}, suggestion, nil
 	}
 
 	ap := models.Appointment{
@@ -113,4 +116,25 @@ func (s *appointmentService) GetWeeklyPerformance() (int, int, error) {
 	}
 
 	return len(list), completed, nil
+}
+
+func (s *appointmentService) MergeAppointments(existingID uint, newServices []models.Service) (models.Appointment, error) {
+	// Get the existing appointment
+	existing, err := s.repo.FindByID(existingID)
+	if err != nil {
+		return models.Appointment{}, err
+	}
+
+	// Append new services to existing services
+	existing.Services = append(existing.Services, newServices...)
+	existing.UpdatedAt = time.Now()
+
+	// Update the appointment
+	err = s.repo.Update(existing)
+	if err != nil {
+		return models.Appointment{}, err
+	}
+
+	// Return the updated appointment
+	return s.repo.FindByID(existingID)
 }

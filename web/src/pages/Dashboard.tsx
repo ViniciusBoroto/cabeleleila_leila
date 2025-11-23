@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import AppointmentForm from "../components/AppointmentForm";
 import AppointmentList from "../components/AppointmentList";
+import AppointmentSuggestionModal from "../components/AppointmentSuggestionModal";
 
 // Tipos baseados na API
 interface Service {
@@ -39,6 +40,10 @@ const SalonDashboard = () => {
   const [showNewAppointment, setShowNewAppointment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [suggestion, setSuggestion] = useState<{
+    appointment: Appointment;
+    newServices: Service[];
+  } | null>(null);
 
   useEffect(() => {
     fetchAppointments();
@@ -122,8 +127,19 @@ const SalonDashboard = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setAppointments([...appointments, data]);
-        setShowNewAppointment(false);
+
+        // If there's a suggestion, show the modal
+        if (data.suggestion) {
+          setSuggestion({
+            appointment: data.suggestion,
+            newServices: services,
+          });
+          setShowNewAppointment(false);
+        } else {
+          // No suggestion, appointment was created
+          setAppointments([...appointments, data.appointment]);
+          setShowNewAppointment(false);
+        }
       } else {
         const errorData = await response.json();
         setError(errorData.error || "Erro ao criar agendamento");
@@ -139,6 +155,91 @@ const SalonDashboard = () => {
   const handleCloseModal = () => {
     setShowNewAppointment(false);
     setError("");
+  };
+
+  const handleMergeSuggestion = async () => {
+    if (!suggestion) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/appointments/${suggestion.appointment.id}/merge`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            services: suggestion.newServices,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update the appointment in the list
+        setAppointments(
+          appointments.map((ap) => (ap.id === data.id ? data : ap))
+        );
+        setSuggestion(null);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Erro ao mesclar agendamentos");
+      }
+    } catch (err) {
+      setError("Erro ao conectar com o servidor");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectSuggestion = async () => {
+    if (!suggestion) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/appointments`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: formatDateToISO(suggestion.appointment.date),
+          services: suggestion.newServices,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAppointments([...appointments, data.appointment]);
+        setSuggestion(null);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Erro ao criar agendamento");
+      }
+    } catch (err) {
+      setError("Erro ao conectar com o servidor");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloseSuggestion = () => {
+    setSuggestion(null);
   };
 
   return (
@@ -185,6 +286,18 @@ const SalonDashboard = () => {
             error={error}
             onSubmit={handleCreateAppointment}
             onClose={handleCloseModal}
+          />
+        )}
+
+        {/* Modal Sugestão de Mesclagem */}
+        {suggestion && (
+          <AppointmentSuggestionModal
+            existingAppointment={suggestion.appointment}
+            newServices={suggestion.newServices}
+            loading={loading}
+            onMerge={handleMergeSuggestion}
+            onReject={handleRejectSuggestion}
+            onClose={handleCloseSuggestion}
           />
         )}
       </div>

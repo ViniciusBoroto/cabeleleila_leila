@@ -29,6 +29,7 @@ func NewAppointmentHandler(svc service.AppointmentService) *AppointmentHandler {
 func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/appointments", h.CreateAppointment)
 	rg.PUT("/appointments/:id", h.UpdateAppointment)
+	rg.POST("/appointments/:id/merge", h.MergeAppointments)
 	// rg.GET("/appointments/:id", h.GetAppointment)
 	rg.GET("/appointments", h.ListAppointments)
 
@@ -122,9 +123,15 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 	var req struct {
 		Services []models.Service `json:"services"`
 		Date     time.Time        `json:"date"`
+		UserID   *uint            `json:"user_id,omitempty"` // Optional, only for admins
 	}
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Date.Before(time.Now()) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "appointment date cannot be in the past"})
 		return
 	}
 
@@ -142,13 +149,11 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 	}
 
 	// Determine user ID based on role
-	var appointmentUserID uint
+	appointmentUserID := userID.(uint)
 	if role == models.RoleAdmin {
-		// Admins can create appointments for themselves, but should use userID from token
-		appointmentUserID = userID.(uint)
-	} else {
-		// Regular customers can only create for themselves
-		appointmentUserID = userID.(uint)
+		if req.UserID != nil {
+			appointmentUserID = *req.UserID
+		}
 	}
 
 	ap, suggestion, err := h.svc.CreateAppointment(appointmentUserID, req.Services, req.Date)
@@ -263,6 +268,51 @@ func (h *AppointmentHandler) ConfirmAppointment(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// MergeAppointments godoc
+// @Summary      Mescla serviços em um agendamento existente
+// @Description  Adiciona novos serviços a um agendamento existente
+// @Tags         appointments
+// @Security     Bearer
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int                        true  "ID do agendamento existente"
+// @Param        request  body  struct{Services []models.Service}  true  "Novos serviços"
+// @Success      200  {object}  models.Appointment
+// @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /appointments/{id}/merge [post]
+func (h *AppointmentHandler) MergeAppointments(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.ParseUint(idParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid appointment ID"})
+		return
+	}
+
+	var req struct {
+		Services []models.Service `json:"services"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(req.Services) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one service must be provided"})
+		return
+	}
+
+	merged, err := h.svc.MergeAppointments(uint(id), req.Services)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, merged)
 }
 
 // // WeeklyPerformance - endpoint gerencial com desempenho semanal.
