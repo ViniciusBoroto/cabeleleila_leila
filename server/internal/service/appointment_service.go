@@ -13,7 +13,7 @@ type AppointmentService interface {
 	UpdateAppointment(id uint, newAp models.Appointment) (models.Appointment, error)
 	ListHistory(start, end time.Time) ([]models.Appointment, error)
 	ListAll() ([]models.Appointment, error)
-	ConfirmAppointment(id uint) error
+	ChangeStatus(id uint, status models.AppointmentStatus) (models.Appointment, error)
 	GetWeeklyPerformance() (int, int, error)
 	MergeAppointments(existingID uint, newServices []models.Service) (models.Appointment, error)
 }
@@ -46,11 +46,12 @@ func (s *appointmentService) CreateAppointment(userID uint, services []models.Se
 
 	// Check for existing appointments in the same week
 	existing, _ := s.repo.FindUserAppointmentsInWeek(userID, weekStart, weekEnd)
-	if len(existing) > 0 {
-		first := existing[0]
-		suggestion = &first
-		// Return suggestion without saving the new appointment
-		return models.Appointment{}, suggestion, nil
+	for _, ap := range existing {
+		if ap.Status == models.StatusPending {
+			s := ap
+			suggestion = &s
+			return
+		}
 	}
 
 	ap := models.Appointment{
@@ -89,14 +90,14 @@ func (s *appointmentService) ListAll() ([]models.Appointment, error) {
 	return s.repo.ListAll()
 }
 
-func (s *appointmentService) ConfirmAppointment(id uint) error {
+func (s *appointmentService) ChangeStatus(id uint, status models.AppointmentStatus) (models.Appointment, error) {
 	ap, err := s.repo.FindByID(id)
 	if err != nil {
-		return err
+		return ap, err
 	}
 
-	ap.Status = models.StatusConfirmed
-	return s.repo.Update(ap)
+	ap.Status = status
+	return ap, s.repo.Update(ap)
 }
 
 func (s *appointmentService) GetWeeklyPerformance() (int, int, error) {

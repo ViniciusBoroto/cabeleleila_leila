@@ -1,10 +1,16 @@
 import {
-  CalendarIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ExclamationCircleIcon,
-} from "@heroicons/react/24/outline";
+  Calendar,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import {
+  canEditAppointment,
+  canCancelAppointment,
+} from "../utils/appointmentHelpers";
 
 interface Service {
   id: number;
@@ -13,32 +19,46 @@ interface Service {
   duration_minutes: number;
 }
 
-interface AppointmentCardProps {
+interface Appointment {
+  id: number;
+  user_id: number;
   date: string;
   status: "PENDING" | "CONFIRMED" | "DONE" | "CANCELED";
   services: Service[];
+  created_at?: string;
+  updated_at?: string;
 }
 
-const AppointmentCard = ({ date, status, services }: AppointmentCardProps) => {
+interface AppointmentCardProps {
+  appointment: Appointment;
+  onEdit: (appointment: Appointment) => void;
+  onCancel: (appointmentId: number) => void;
+}
+
+const AppointmentCard = ({
+  appointment,
+  onEdit,
+  onCancel,
+}: AppointmentCardProps) => {
   const getStatusBadge = (status: string) => {
     const badges = {
       PENDING: {
-        icon: ExclamationCircleIcon,
+        icon: AlertCircle,
         color: "bg-yellow-100 text-yellow-800",
         text: "Pendente",
       },
       CONFIRMED: {
-        icon: CheckCircleIcon,
+        icon: CheckCircle,
         color: "bg-blue-100 text-blue-800",
         text: "Confirmado",
       },
       DONE: {
-        icon: CheckCircleIcon,
+        icon: CheckCircle,
         color: "bg-green-100 text-green-800",
         text: "Concluído",
       },
       CANCELED: {
-        icon: XCircleIcon,
+        icon: XCircle,
         color: "bg-red-100 text-red-800",
         text: "Cancelado",
       },
@@ -76,28 +96,87 @@ const AppointmentCard = ({ date, status, services }: AppointmentCardProps) => {
     return services.reduce((sum, service) => sum + service.duration_minutes, 0);
   };
 
+  const editCheck = canEditAppointment(appointment.date);
+  const cancelCheck = canCancelAppointment(appointment.status);
+
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-md transition p-6">
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-start gap-3">
-          <CalendarIcon className="w-5 h-5 text-purple-600 mt-1" />
+          <Calendar className="w-5 h-5 text-purple-600 mt-1" />
           <div>
             <h3 className="font-semibold text-lg text-gray-900">
-              {formatDate(date)}
+              {formatDate(appointment.date)}
             </h3>
             <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-              <ClockIcon className="w-4 h-4" />
-              <span>{calculateTotalDuration(services)} minutos</span>
+              <Clock className="w-4 h-4" />
+              <span>
+                {calculateTotalDuration(appointment.services)} minutos
+              </span>
             </div>
           </div>
         </div>
-        {getStatusBadge(status)}
+        <div className="flex items-center gap-2">
+          {getStatusBadge(appointment.status)}
+
+          {/* Edit Button - sempre visível mas pode estar desabilitado */}
+          <div className="relative group">
+            <button
+              onClick={() => editCheck.canEdit && onEdit(appointment)}
+              disabled={!editCheck.canEdit}
+              className={`p-2 rounded-lg transition ${
+                editCheck.canEdit
+                  ? "text-purple-600 hover:bg-purple-50 cursor-pointer"
+                  : "text-gray-400 cursor-not-allowed"
+              }`}
+              title={
+                editCheck.canEdit ? "Editar agendamento" : editCheck.reason
+              }
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            {/* Tooltip quando desabilitado */}
+            {!editCheck.canEdit && (
+              <div className="absolute hidden group-hover:block right-0 top-full mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg p-3 z-10 shadow-lg">
+                <div className="absolute -top-1 right-4 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                {editCheck.reason}
+              </div>
+            )}
+          </div>
+
+          {/* Cancel Button - sempre visível mas pode estar desabilitado */}
+          <div className="relative group">
+            <button
+              onClick={() => cancelCheck.canCancel && onCancel(appointment.id)}
+              disabled={!cancelCheck.canCancel}
+              className={`p-2 rounded-lg transition ${
+                cancelCheck.canCancel
+                  ? "text-red-600 hover:bg-red-50 cursor-pointer"
+                  : "text-gray-400 cursor-not-allowed"
+              }`}
+              title={
+                cancelCheck.canCancel
+                  ? "Cancelar agendamento"
+                  : cancelCheck.reason
+              }
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            {/* Tooltip quando desabilitado */}
+            {!cancelCheck.canCancel && (
+              <div className="absolute hidden group-hover:block right-0 top-full mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg p-3 z-10 shadow-lg">
+                <div className="absolute -top-1 right-4 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                {cancelCheck.reason}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="border-t pt-4">
         <h4 className="font-medium text-gray-700 mb-3">Serviços:</h4>
         <div className="space-y-2">
-          {services.map((service) => (
+          {appointment.services.map((service) => (
             <div
               key={service.id}
               className="flex justify-between items-center bg-gray-50 rounded p-3"
@@ -117,7 +196,7 @@ const AppointmentCard = ({ date, status, services }: AppointmentCardProps) => {
         <div className="mt-4 pt-4 border-t flex justify-between items-center">
           <span className="font-semibold text-gray-700">Total:</span>
           <span className="text-xl font-bold text-purple-600">
-            R$ {calculateTotal(services).toFixed(2)}
+            R$ {calculateTotal(appointment.services).toFixed(2)}
           </span>
         </div>
       </div>

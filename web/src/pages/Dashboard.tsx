@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { Plus } from "lucide-react";
 import AppointmentForm from "../components/AppointmentForm";
 import AppointmentList from "../components/AppointmentList";
 import AppointmentSuggestionModal from "../components/AppointmentSuggestionModal";
+import CancelConfirmationModal from "../components/CancelConfirmationModal";
 
 // Tipos baseados na API
 interface Service {
@@ -38,6 +39,12 @@ const SalonDashboard = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<
+    Appointment | undefined
+  >();
+  const [cancelingAppointment, setCancelingAppointment] = useState<
+    Appointment | undefined
+  >();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [suggestion, setSuggestion] = useState<{
@@ -66,7 +73,10 @@ const SalonDashboard = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        let data = await response.json();
+        data = data.filter(
+          (ap: Appointment): boolean => ap.status !== "CANCELED"
+        );
         setAppointments(data || []);
       } else {
         setError("Erro ao carregar agendamentos");
@@ -98,9 +108,10 @@ const SalonDashboard = () => {
     }
   };
 
-  const handleCreateAppointment = async (
+  const handleSubmitAppointment = async (
     date: string,
-    selectedServices: number[]
+    selectedServices: number[],
+    appointmentId?: number
   ) => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -113,8 +124,14 @@ const SalonDashboard = () => {
         selectedServices.includes(s.id)
       );
 
-      const response = await fetch(`${API_BASE}/appointments`, {
-        method: "POST",
+      const url = appointmentId
+        ? `${API_BASE}/appointments/${appointmentId}`
+        : `${API_BASE}/appointments`;
+
+      const method = appointmentId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -128,21 +145,33 @@ const SalonDashboard = () => {
       if (response.ok) {
         const data = await response.json();
 
-        // If there's a suggestion, show the modal
-        if (data.suggestion) {
-          setSuggestion({
-            appointment: data.suggestion,
-            newServices: services,
-          });
+        if (appointmentId) {
+          // Update existing appointment
+          setAppointments(
+            appointments.map((ap) => (ap.id === appointmentId ? data : ap))
+          );
           setShowNewAppointment(false);
+          setEditingAppointment(undefined);
         } else {
-          // No suggestion, appointment was created
-          setAppointments([...appointments, data.appointment]);
-          setShowNewAppointment(false);
+          // Creating new appointment - check for suggestion
+          if (data.suggestion) {
+            setSuggestion({
+              appointment: data.suggestion,
+              newServices: services,
+            });
+            setShowNewAppointment(false);
+          } else {
+            // No suggestion, appointment was created
+            setAppointments([...appointments, data.appointment]);
+            setShowNewAppointment(false);
+          }
         }
       } else {
         const errorData = await response.json();
-        setError(errorData.error || "Erro ao criar agendamento");
+        setError(
+          errorData.error ||
+            `Erro ao ${appointmentId ? "atualizar" : "criar"} agendamento`
+        );
       }
     } catch (err) {
       setError("Erro ao conectar com o servidor");
@@ -152,9 +181,65 @@ const SalonDashboard = () => {
     }
   };
 
+  const handleCancelAppointment = async () => {
+    if (!cancelingAppointment) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/appointments/${cancelingAppointment.id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update the appointment status in the list
+        setAppointments(appointments.filter((ap) => ap.id !== data.id));
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Erro ao cancelar agendamento");
+      }
+    } catch (err) {
+      setError("Erro ao conectar com o servidor");
+      console.error(err);
+    } finally {
+      setLoading(false);
+
+      setCancelingAppointment(undefined);
+    }
+  };
+
+  const handleEdit = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setShowNewAppointment(true);
+  };
+
+  const handleCancelClick = (appointmentId: number) => {
+    const appointment = appointments.find((ap) => ap.id === appointmentId);
+    if (appointment) {
+      setCancelingAppointment(appointment);
+    }
+  };
+
   const handleCloseModal = () => {
     setShowNewAppointment(false);
+    setEditingAppointment(undefined);
     setError("");
+  };
+
+  const handleCloseCancelModal = () => {
+    setCancelingAppointment(undefined);
   };
 
   const handleMergeSuggestion = async () => {
@@ -224,7 +309,7 @@ const SalonDashboard = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setAppointments([...appointments, data.appointment]);
+        setAppointments([...appointments, data.appointment || data]);
         setSuggestion(null);
       } else {
         const errorData = await response.json();
@@ -259,13 +344,13 @@ const SalonDashboard = () => {
             onClick={() => setShowNewAppointment(true)}
             className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
           >
-            <PlusIcon className="w-5 h-5" />
+            <Plus className="w-5 h-5" />
             Novo Agendamento
           </button>
         </div>
 
         {/* Mensagem de erro */}
-        {error && !showNewAppointment && (
+        {error && !showNewAppointment && !cancelingAppointment && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
@@ -276,16 +361,29 @@ const SalonDashboard = () => {
           appointments={appointments}
           loading={loading}
           onCreateNew={() => setShowNewAppointment(true)}
+          onEdit={handleEdit}
+          onCancel={handleCancelClick}
         />
 
-        {/* Modal Novo Agendamento */}
+        {/* Modal Novo/Editar Agendamento */}
         {showNewAppointment && (
           <AppointmentForm
             availableServices={availableServices}
             loading={loading}
             error={error}
-            onSubmit={handleCreateAppointment}
+            onSubmit={handleSubmitAppointment}
             onClose={handleCloseModal}
+            editingAppointment={editingAppointment}
+          />
+        )}
+
+        {/* Modal Confirmação de Cancelamento */}
+        {cancelingAppointment && (
+          <CancelConfirmationModal
+            appointmentDate={cancelingAppointment.date}
+            loading={loading}
+            onConfirm={handleCancelAppointment}
+            onClose={handleCloseCancelModal}
           />
         )}
 

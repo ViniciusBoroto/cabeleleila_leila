@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { canEditAppointment } from "../utils/appointmentHelpers";
 
 interface Service {
   id: number;
@@ -8,12 +9,25 @@ interface Service {
   duration_minutes: number;
 }
 
+interface Appointment {
+  id: number;
+  user_id: number;
+  date: string;
+  status: "PENDING" | "CONFIRMED" | "DONE" | "CANCELED";
+  services: Service[];
+}
+
 interface AppointmentFormProps {
   availableServices: Service[];
   loading: boolean;
   error: string;
-  onSubmit: (date: string, selectedServices: number[]) => Promise<void>;
+  onSubmit: (
+    date: string,
+    selectedServices: number[],
+    appointmentId?: number
+  ) => Promise<void>;
   onClose: () => void;
+  editingAppointment?: Appointment;
 }
 
 const AppointmentForm = ({
@@ -22,10 +36,23 @@ const AppointmentForm = ({
   error,
   onSubmit,
   onClose,
+  editingAppointment,
 }: AppointmentFormProps) => {
-  const [newAppointmentDate, setNewAppointmentDate] = useState("");
+  const [appointmentDate, setAppointmentDate] = useState("");
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [validationError, setValidationError] = useState("");
+
+  useEffect(() => {
+    if (editingAppointment) {
+      // Convert ISO date to datetime-local format
+      const date = new Date(editingAppointment.date);
+      const localDate = new Date(
+        date.getTime() - date.getTimezoneOffset() * 60000
+      );
+      setAppointmentDate(localDate.toISOString().slice(0, 16));
+      setSelectedServices(editingAppointment.services.map((s) => s.id));
+    }
+  }, [editingAppointment]);
 
   const toggleService = (serviceId: number) => {
     setSelectedServices((prev) =>
@@ -59,7 +86,7 @@ const AppointmentForm = ({
     }
 
     // Validate date is not in the past
-    const selectedDate = new Date(newAppointmentDate);
+    const selectedDate = new Date(appointmentDate);
     const now = new Date();
     if (selectedDate < now) {
       setValidationError("A data não pode ser anterior a agora");
@@ -67,17 +94,28 @@ const AppointmentForm = ({
     }
 
     // Validate date is provided
-    if (!newAppointmentDate) {
+    if (!appointmentDate) {
       setValidationError("Selecione uma data e hora");
       return;
     }
 
-    await onSubmit(newAppointmentDate, selectedServices);
+    // Check 2-day restriction for edits
+    if (editingAppointment) {
+      const editCheck = canEditAppointment(appointmentDate);
+      if (!editCheck.canEdit) {
+        setValidationError(
+          editCheck.reason || "Não é possível editar este agendamento"
+        );
+        return;
+      }
+    }
+
+    await onSubmit(appointmentDate, selectedServices, editingAppointment?.id);
     handleClose();
   };
 
   const handleClose = () => {
-    setNewAppointmentDate("");
+    setAppointmentDate("");
     setSelectedServices([]);
     setValidationError("");
     onClose();
@@ -87,21 +125,36 @@ const AppointmentForm = ({
     selectedServices.includes(s.id)
   );
 
+  // Check if editing is blocked
+  const editCheck = editingAppointment
+    ? canEditAppointment(editingAppointment.date)
+    : { canEdit: true };
+  const isBlocked = editingAppointment && !editCheck.canEdit;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Novo Agendamento</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {editingAppointment ? "Editar Agendamento" : "Novo Agendamento"}
+          </h2>
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
         <div className="p-6">
-          {(error || validationError) && (
+          {isBlocked && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+              <p className="font-semibold mb-1">Edição não permitida</p>
+              <p className="text-sm">{editCheck.reason}</p>
+            </div>
+          )}
+
+          {(error || validationError) && !isBlocked && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
               {error || validationError}
             </div>
@@ -113,10 +166,11 @@ const AppointmentForm = ({
             </label>
             <input
               type="datetime-local"
-              value={newAppointmentDate}
-              onChange={(e) => setNewAppointmentDate(e.target.value)}
+              value={appointmentDate}
+              onChange={(e) => setAppointmentDate(e.target.value)}
               min={getMinDateTime()}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              disabled={isBlocked}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
             <p className="text-xs text-gray-500 mt-1">
               A data deve ser a partir de agora
@@ -140,14 +194,15 @@ const AppointmentForm = ({
                       selectedServices.includes(service.id)
                         ? "border-purple-600 bg-purple-50"
                         : "border-gray-200 hover:border-gray-300"
-                    }`}
+                    } ${isBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={selectedServices.includes(service.id)}
                         onChange={() => toggleService(service.id)}
-                        className="w-5 h-5 text-purple-600 rounded focus:ring-purple-600"
+                        disabled={isBlocked}
+                        className="w-5 h-5 text-purple-600 rounded focus:ring-purple-600 disabled:cursor-not-allowed"
                       />
                       <div>
                         <p className="font-medium text-gray-900">
@@ -205,10 +260,14 @@ const AppointmentForm = ({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || isBlocked}
               className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {loading ? "Criando..." : "Confirmar Agendamento"}
+              {loading
+                ? "Salvando..."
+                : editingAppointment
+                ? "Salvar Alterações"
+                : "Confirmar Agendamento"}
             </button>
           </div>
         </div>

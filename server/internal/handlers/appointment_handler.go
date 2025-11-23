@@ -29,13 +29,14 @@ func NewAppointmentHandler(svc service.AppointmentService) *AppointmentHandler {
 func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/appointments", h.CreateAppointment)
 	rg.PUT("/appointments/:id", h.UpdateAppointment)
+	rg.POST("/appointments/:id/cancel", h.CancelAppointment)
 	rg.POST("/appointments/:id/merge", h.MergeAppointments)
 	// rg.GET("/appointments/:id", h.GetAppointment)
 	rg.GET("/appointments", h.ListAppointments)
 
 	// Operacional
 	rg.GET("/admin/incoming", h.ListIncoming)
-	rg.POST("/admin/appointments/:id/confirm", h.ConfirmAppointment)
+	rg.PATCH("/admin/appointments/:id/status", h.ChangeStatus)
 	// rg.PUT("/admin/appointments/:id/services/:serviceID/status", h.UpdateServiceStatus)
 
 	// Gerencial
@@ -227,6 +228,32 @@ func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
+// ChangeStatus godoc
+// @Summary      Cancela um agendamento
+// @Description  Cancela um agendamento
+// @Tags         appointments
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "ID do agendamento"
+// @Success      200  {object}  nil
+// @Failure      400  {object}  ErrorResponse
+// @Router       /admin/appointments/{id}/confirm [post]
+func (h *AppointmentHandler) CancelAppointment(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.ParseUint(idParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid appointment ID"})
+		return
+	}
+
+	ap, err := h.svc.ChangeStatus(uint(id), models.StatusCanceled)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, ap)
+}
+
 // ListIncoming godoc
 // @Summary      Lista agendamentos recebidos
 // @Description  Listagem operacional de agendamentos recebidos
@@ -245,17 +272,22 @@ func (h *AppointmentHandler) ListIncoming(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-// ConfirmAppointment godoc
-// @Summary      Confirma um agendamento
-// @Description  Confirma um agendamento operacionalmente
+// ChangeStatus godoc
+// @Summary      Atualiza o status de um agendamento
+// @Description  Atualiza o status de um agendamento operacionalmente
 // @Tags         admin
 // @Accept       json
 // @Produce      json
 // @Param        id   path      int  true  "ID do agendamento"
-// @Success      204  {object}  nil
+// @Success      200  {object}  nil
 // @Failure      400  {object}  ErrorResponse
 // @Router       /admin/appointments/{id}/confirm [post]
-func (h *AppointmentHandler) ConfirmAppointment(c *gin.Context) {
+func (h *AppointmentHandler) ChangeStatus(c *gin.Context) {
+	var req models.AppointmentStatus
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
@@ -263,11 +295,12 @@ func (h *AppointmentHandler) ConfirmAppointment(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.ConfirmAppointment(uint(id)); err != nil {
+	ap, err := h.svc.ChangeStatus(uint(id), req)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusOK, ap)
 }
 
 // MergeAppointments godoc

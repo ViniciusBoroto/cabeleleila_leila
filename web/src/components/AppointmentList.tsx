@@ -1,4 +1,4 @@
-import { CalendarIcon } from "@heroicons/react/24/outline";
+import { Calendar } from "lucide-react";
 import AppointmentCard from "./AppointmentCard";
 
 interface Service {
@@ -23,12 +23,16 @@ interface AppointmentListProps {
   appointments: Appointment[];
   loading: boolean;
   onCreateNew: () => void;
+  onEdit: (appointment: Appointment) => void;
+  onCancel: (appointmentId: number) => void;
 }
 
 const AppointmentList = ({
   appointments,
   loading,
   onCreateNew,
+  onEdit,
+  onCancel,
 }: AppointmentListProps) => {
   if (loading) {
     return (
@@ -42,7 +46,7 @@ const AppointmentList = ({
   if (appointments.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
-        <CalendarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700 mb-2">
           Nenhum agendamento encontrado
         </h3>
@@ -64,9 +68,9 @@ const AppointmentList = ({
       {appointments.map((appointment) => (
         <AppointmentCard
           key={appointment.id}
-          date={appointment.date}
-          status={appointment.status}
-          services={appointment.services}
+          appointment={appointment}
+          onEdit={onEdit}
+          onCancel={onCancel}
         />
       ))}
     </div>
