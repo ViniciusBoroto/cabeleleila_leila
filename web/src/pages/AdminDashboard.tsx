@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Calendar, TrendingUp, DollarSign, Users, Clock } from "lucide-react";
 import {
   LineChart,
@@ -13,6 +13,12 @@ import {
   Bar,
 } from "recharts";
 import LogoutButton from "../components/LogoutButton";
+import AppointmentFilter from "../components/AppointmentFilter";
+import type { FilterPeriod } from "../components/AppointmentFilter";
+import {
+  filterAppointmentsByPeriod,
+  getDefaultCustomDates,
+} from "../utils/filterHelpers";
 
 // Tipos
 interface Service {
@@ -60,6 +66,11 @@ const AdminDashboardPage = () => {
     "all" | "PENDING" | "CONFIRMED" | "DONE" | "CANCELED"
   >("all");
 
+  // Estados do filtro de período
+  const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+
   // Estados do formulário
   const [editDate, setEditDate] = useState("");
   const [editServices, setEditServices] = useState<number[]>([]);
@@ -69,7 +80,22 @@ const AdminDashboardPage = () => {
   useEffect(() => {
     fetchAppointments();
     fetchServices();
+
+    // Inicializar datas personalizadas
+    const defaultDates = getDefaultCustomDates();
+    setCustomStartDate(defaultDates.start);
+    setCustomEndDate(defaultDates.end);
   }, []);
+
+  // Aplicar filtro de período nos agendamentos
+  const periodFilteredAppointments = useMemo(() => {
+    return filterAppointmentsByPeriod(
+      appointments,
+      filterPeriod,
+      customStartDate,
+      customEndDate
+    );
+  }, [appointments, filterPeriod, customStartDate, customEndDate]);
 
   const fetchAppointments = async () => {
     const token = localStorage.getItem("token");
@@ -173,6 +199,15 @@ const AdminDashboardPage = () => {
     }
   };
 
+  const handlePeriodChange = (period: FilterPeriod) => {
+    setFilterPeriod(period);
+  };
+
+  const handleCustomDateChange = (start: string, end: string) => {
+    setCustomStartDate(start);
+    setCustomEndDate(end);
+  };
+
   // Calcular estatísticas semanais
   const calculateWeeklyStats = (): WeeklyStats[] => {
     const stats: { [key: string]: WeeklyStats } = {};
@@ -235,10 +270,11 @@ const AdminDashboardPage = () => {
         ) / appointments.length
       : 0;
 
+  // Aplicar filtro de status na lista já filtrada por período
   const filteredAppointments =
     filter === "all"
-      ? appointments
-      : appointments.filter((ap) => ap.status === filter);
+      ? periodFilteredAppointments
+      : periodFilteredAppointments.filter((ap) => ap.status === filter);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -394,6 +430,17 @@ const AdminDashboardPage = () => {
           </div>
         </div>
 
+        {/* Filtro de Período */}
+        <AppointmentFilter
+          selectedPeriod={filterPeriod}
+          customStartDate={customStartDate}
+          customEndDate={customEndDate}
+          totalCount={appointments.length}
+          filteredCount={periodFilteredAppointments.length}
+          onPeriodChange={handlePeriodChange}
+          onCustomDateChange={handleCustomDateChange}
+        />
+
         {/* Filtros */}
         <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
           <div className="flex gap-2 flex-wrap">
@@ -405,7 +452,7 @@ const AdminDashboardPage = () => {
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Todos ({appointments.length})
+              Todos ({periodFilteredAppointments.length})
             </button>
             <button
               onClick={() => setFilter("PENDING")}
@@ -416,7 +463,11 @@ const AdminDashboardPage = () => {
               }`}
             >
               Pendentes (
-              {appointments.filter((a) => a.status === "PENDING").length})
+              {
+                periodFilteredAppointments.filter((a) => a.status === "PENDING")
+                  .length
+              }
+              )
             </button>
             <button
               onClick={() => setFilter("CONFIRMED")}
@@ -427,7 +478,12 @@ const AdminDashboardPage = () => {
               }`}
             >
               Confirmados (
-              {appointments.filter((a) => a.status === "CONFIRMED").length})
+              {
+                periodFilteredAppointments.filter(
+                  (a) => a.status === "CONFIRMED"
+                ).length
+              }
+              )
             </button>
             <button
               onClick={() => setFilter("DONE")}
@@ -438,7 +494,11 @@ const AdminDashboardPage = () => {
               }`}
             >
               Concluídos (
-              {appointments.filter((a) => a.status === "DONE").length})
+              {
+                periodFilteredAppointments.filter((a) => a.status === "DONE")
+                  .length
+              }
+              )
             </button>
             <button
               onClick={() => setFilter("CANCELED")}
@@ -449,7 +509,12 @@ const AdminDashboardPage = () => {
               }`}
             >
               Cancelados (
-              {appointments.filter((a) => a.status === "CANCELED").length})
+              {
+                periodFilteredAppointments.filter(
+                  (a) => a.status === "CANCELED"
+                ).length
+              }
+              )
             </button>
           </div>
         </div>
@@ -481,44 +546,55 @@ const AdminDashboardPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredAppointments.map((appointment) => (
-                  <tr key={appointment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {appointment.user?.name ||
-                          `Usuário #${appointment.user_id}`}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {appointment.user?.email || ""}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(appointment.date)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {appointment.services.map((s) => s.name).join(", ")}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(appointment.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      R${" "}
-                      {appointment.services
-                        .reduce((sum, s) => sum + s.price, 0)
-                        .toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleEdit(appointment)}
-                        className="text-purple-600 hover:text-purple-900 font-medium"
-                      >
-                        Editar
-                      </button>
+                {filteredAppointments.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-8 text-center text-gray-500"
+                    >
+                      Nenhum agendamento encontrado
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredAppointments.map((appointment) => (
+                    <tr key={appointment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {appointment.user?.name ||
+                            `Usuário #${appointment.user_id}`}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {appointment.user?.email || ""}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(appointment.date)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {appointment.services.map((s) => s.name).join(", ")}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(appointment.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                        R${" "}
+                        {appointment.services
+                          .reduce((sum, s) => sum + s.price, 0)
+                          .toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => handleEdit(appointment)}
+                          className="text-purple-600 hover:text-purple-900 font-medium"
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

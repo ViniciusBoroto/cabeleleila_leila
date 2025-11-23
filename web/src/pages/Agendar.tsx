@@ -1,10 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import AppointmentForm from "../components/AppointmentForm";
 import AppointmentList from "../components/AppointmentList";
 import AppointmentSuggestionModal from "../components/AppointmentSuggestionModal";
 import CancelConfirmationModal from "../components/CancelConfirmationModal";
+import AppointmentFilter from "../components/AppointmentFilter";
+import type { FilterPeriod } from "../components/AppointmentFilter";
 import LogoutButton from "../components/LogoutButton";
+import {
+  filterAppointmentsByPeriod,
+  getDefaultCustomDates,
+} from "../utils/filterHelpers";
 
 // Tipos baseados na API
 interface Service {
@@ -37,10 +43,11 @@ const formatDateToISO = (dateString: string) => {
 };
 
 const AgendarPage = () => {
-  const isAdmin = localStorage.getItem("role") === "admin"; // TODO: Mover isso para o header
+  const isAdmin = localStorage.getItem("role") === "admin";
   if (isAdmin) {
     window.location.href = "/admin/dashboard";
   }
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
@@ -57,10 +64,30 @@ const AgendarPage = () => {
     newServices: Service[];
   } | null>(null);
 
+  // Estados do filtro
+  const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+
   useEffect(() => {
     fetchAppointments();
     fetchServices();
+
+    // Inicializar datas personalizadas
+    const defaultDates = getDefaultCustomDates();
+    setCustomStartDate(defaultDates.start);
+    setCustomEndDate(defaultDates.end);
   }, []);
+
+  // Memorizar agendamentos filtrados
+  const filteredAppointments = useMemo(() => {
+    return filterAppointmentsByPeriod(
+      appointments,
+      filterPeriod,
+      customStartDate,
+      customEndDate
+    );
+  }, [appointments, filterPeriod, customStartDate, customEndDate]);
 
   const fetchAppointments = async () => {
     const token = localStorage.getItem("token");
@@ -151,14 +178,12 @@ const AgendarPage = () => {
         const data = await response.json();
 
         if (appointmentId) {
-          // Update existing appointment
           setAppointments(
             appointments.map((ap) => (ap.id === appointmentId ? data : ap))
           );
           setShowNewAppointment(false);
           setEditingAppointment(undefined);
         } else {
-          // Creating new appointment - check for suggestion
           if (data.suggestion) {
             setSuggestion({
               appointment: data.suggestion,
@@ -166,7 +191,6 @@ const AgendarPage = () => {
             });
             setShowNewAppointment(false);
           } else {
-            // No suggestion, appointment was created
             setAppointments([...appointments, data.appointment]);
             setShowNewAppointment(false);
           }
@@ -209,7 +233,6 @@ const AgendarPage = () => {
 
       if (response.ok) {
         const data = await response.json();
-        // Update the appointment status in the list
         setAppointments(appointments.filter((ap) => ap.id !== data.id));
       } else {
         const errorData = await response.json();
@@ -220,7 +243,6 @@ const AgendarPage = () => {
       console.error(err);
     } finally {
       setLoading(false);
-
       setCancelingAppointment(undefined);
     }
   };
@@ -273,7 +295,6 @@ const AgendarPage = () => {
 
       if (response.ok) {
         const data = await response.json();
-        // Update the appointment in the list
         setAppointments(
           appointments.map((ap) => (ap.id === data.id ? data : ap))
         );
@@ -332,6 +353,15 @@ const AgendarPage = () => {
     setSuggestion(null);
   };
 
+  const handlePeriodChange = (period: FilterPeriod) => {
+    setFilterPeriod(period);
+  };
+
+  const handleCustomDateChange = (start: string, end: string) => {
+    setCustomStartDate(start);
+    setCustomEndDate(end);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -345,14 +375,16 @@ const AgendarPage = () => {
               Gerencie seus horários no salão
             </p>
           </div>
-          <button
-            onClick={() => setShowNewAppointment(true)}
-            className="flex cursor-pointer items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Agendamento
-          </button>
-          <LogoutButton />
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowNewAppointment(true)}
+              className="flex cursor-pointer items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+            >
+              <Plus className="w-5 h-5" />
+              Novo Agendamento
+            </button>
+            <LogoutButton />
+          </div>
         </div>
 
         {/* Mensagem de erro */}
@@ -362,9 +394,20 @@ const AgendarPage = () => {
           </div>
         )}
 
+        {/* Filtro de Período */}
+        <AppointmentFilter
+          selectedPeriod={filterPeriod}
+          customStartDate={customStartDate}
+          customEndDate={customEndDate}
+          totalCount={appointments.length}
+          filteredCount={filteredAppointments.length}
+          onPeriodChange={handlePeriodChange}
+          onCustomDateChange={handleCustomDateChange}
+        />
+
         {/* Lista de Agendamentos */}
         <AppointmentList
-          appointments={appointments}
+          appointments={filteredAppointments}
           loading={loading}
           onCreateNew={() => setShowNewAppointment(true)}
           onEdit={handleEdit}
