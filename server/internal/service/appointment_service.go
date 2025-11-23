@@ -12,6 +12,7 @@ type AppointmentService interface {
 	CreateAppointment(userID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, res error)
 	UpdateAppointment(id uint, newAp models.Appointment) (models.Appointment, error)
 	ListHistory(start, end time.Time) ([]models.Appointment, error)
+	ListUserHistory(userID uint, start, end time.Time) ([]models.Appointment, error)
 	ListAll() ([]models.Appointment, error)
 	ChangeStatus(id uint, status models.AppointmentStatus) (models.Appointment, error)
 	GetWeeklyPerformance() (int, int, error)
@@ -84,6 +85,9 @@ func (s *appointmentService) UpdateAppointment(id uint, newAp models.Appointment
 
 func (s *appointmentService) ListHistory(start, end time.Time) ([]models.Appointment, error) {
 	return s.repo.ListByPeriod(start, end)
+}
+func (s *appointmentService) ListUserHistory(userID uint, start, end time.Time) ([]models.Appointment, error) {
+	return s.repo.ListByPeriodAndUser(userID, start, end)
 }
 
 func (s *appointmentService) ListAll() ([]models.Appointment, error) {

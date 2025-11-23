@@ -32,7 +32,7 @@ func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/appointments/:id/cancel", h.CancelAppointment)
 	rg.POST("/appointments/:id/merge", h.MergeAppointments)
 	// rg.GET("/appointments/:id", h.GetAppointment)
-	rg.GET("/appointments", h.ListAppointments)
+	rg.GET("/appointments", h.ListUserAppointments)
 
 	// Operacional
 	rg.GET("/admin/incoming", h.ListIncoming)
@@ -43,7 +43,7 @@ func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	// rg.GET("/admin/weekly-performance", h.WeeklyPerformance)
 }
 
-// ListAppointments godoc
+// ListUserAppointments godoc
 // @Summary      Lista agendamentos
 // @Description  Retorna histórico ou agendamentos em um período
 // @Tags         appointments
@@ -56,16 +56,10 @@ func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // @Failure      401  {object}  map[string]string
 // @Failure      500  {object}  ErrorResponse
 // @Router       /appointments [get]
-func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
+func (h *AppointmentHandler) ListUserAppointments(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user info in token"})
-		return
-	}
-
-	role, exists := c.Get("role")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing role in token"})
 		return
 	}
 
@@ -84,17 +78,8 @@ func (h *AppointmentHandler) ListAppointments(c *gin.Context) {
 		filter.EndDate = &dftEnd
 	}
 
-	// Admins can see all appointments, customers only see their own
-	var list interface{}
-	var err error
-	if role == models.RoleAdmin {
-		list, err = h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
-	} else {
-		// For customers, only list their own appointments
-		// Note: You may need to implement a filtered method in service if appointments are per-customer
-		_ = userID // Customer appointments would be filtered by service if needed
-		list, err = h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
-	}
+	list, err := h.svc.ListUserHistory(userID.(uint), *filter.StartDate, *filter.EndDate)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -303,6 +288,10 @@ func (h *AppointmentHandler) ChangeStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, ap)
 }
 
+type MergeAppointmentsRequest struct {
+	Services []models.Service `json:"services"`
+}
+
 // MergeAppointments godoc
 // @Summary      Mescla serviços em um agendamento existente
 // @Description  Adiciona novos serviços a um agendamento existente
@@ -311,7 +300,7 @@ func (h *AppointmentHandler) ChangeStatus(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id   path      int                        true  "ID do agendamento existente"
-// @Param        request  body  struct{Services []models.Service}  true  "Novos serviços"
+// @Param        request  body  MergeAppointmentsRequest  true  "Novos serviços"
 // @Success      200  {object}  models.Appointment
 // @Failure      400  {object}  ErrorResponse
 // @Failure      401  {object}  ErrorResponse
@@ -326,9 +315,7 @@ func (h *AppointmentHandler) MergeAppointments(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Services []models.Service `json:"services"`
-	}
+	var req MergeAppointmentsRequest
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

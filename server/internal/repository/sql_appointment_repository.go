@@ -55,6 +55,11 @@ func (r *sqlAppointmentRepo) ListByPeriod(start, end time.Time) ([]models.Appoin
 	err := r.db.Preload("User").Preload("Services").Where("date BETWEEN ? AND ?", start, end).Find(&list).Error
 	return list, err
 }
+func (r *sqlAppointmentRepo) ListByPeriodAndUser(userID uint, start, end time.Time) ([]models.Appointment, error) {
+	var list []models.Appointment
+	err := r.db.Preload("User").Preload("Services").Where("user_id = ? AND date BETWEEN ? AND ?", userID, start, end).Find(&list).Error
+	return list, err
+}
 
 func (r *sqlAppointmentRepo) ListAll() ([]models.Appointment, error) {
 	var list []models.Appointment

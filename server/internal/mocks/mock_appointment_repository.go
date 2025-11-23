@@ -110,6 +110,19 @@ func (mr *MockAppointmentRepositoryMockRecorder) ListByPeriod(start, end interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByPeriod", reflect.TypeOf((*MockAppointmentRepository)(nil).ListByPeriod), start, end)
 }
 
+func (m *MockAppointmentRepository) ListByPeriodAndUser(userID uint, start, end time.Time) ([]models.Appointment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByPeriod", userID, start, end)
+	ret0, _ := ret[0].([]models.Appointment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (mr *MockAppointmentRepositoryMockRecorder) ListByPeriodAndUser(userID, start, end interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByPeriod", reflect.TypeOf((*MockAppointmentRepository)(nil).ListByPeriod), userID, start, end)
+}
+
 // Update mocks base method.
 func (m *MockAppointmentRepository) Update(ap models.Appointment) error {
 	m.ctrl.T.Helper()

@@ -43,47 +43,12 @@ definitions:
       error:
         type: string
     type: object
-  handlers.LoginRequest:
+  handlers.MergeAppointmentsRequest:
     properties:
-      email:
-        type: string
-      password:
-        minLength: 6
-        type: string
-    required:
-    - email
-    - password
-    type: object
-  handlers.LoginResponse:
-    properties:
-      token:
-        type: string
-      user:
-        $ref: '#/definitions/handlers.UserInfo'
-    type: object
-  handlers.RegisterRequest:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      password:
-        minLength: 6
-        type: string
-      phone:
-        type: string
-    required:
-    - email
-    - name
-    - password
-    - phone
-    type: object
-  handlers.RegisterResponse:
-    properties:
-      token:
-        type: string
-      user:
-        $ref: '#/definitions/handlers.UserInfo'
+      services:
+        items:
+          $ref: '#/definitions/models.Service'
+        type: array
     type: object
   handlers.ServiceResponse:
     properties:
@@ -118,17 +83,6 @@ definitions:
       name:
         type: string
       phone:
-        type: string
-      role:
-        $ref: '#/definitions/models.UserRole'
-    type: object
-  handlers.UserInfo:
-    properties:
-      email:
-        type: string
-      id:
-        type: integer
-      name:
         type: string
       role:
         $ref: '#/definitions/models.UserRole'
@@ -230,7 +184,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Confirma um agendamento operacionalmente
+      description: Atualiza o status de um agendamento operacionalmente
       parameters:
       - description: ID do agendamento
         in: path
@@ -240,13 +194,13 @@ paths:
       produces:
       - application/json
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Confirma um agendamento
+      summary: Atualiza o status de um agendamento
       tags:
       - admin
   /admin/incoming:
@@ -658,74 +612,51 @@ paths:
       summary: Atualiza um agendamento
       tags:
       - appointments
-  /auth/login:
+  /appointments/{id}/merge:
     post:
       consumes:
       - application/json
-      description: Autentica o usuário e retorna um token JWT
+      description: Adiciona novos serviços a um agendamento existente
       parameters:
-      - description: Credenciais de login
+      - description: ID do agendamento existente
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Novos serviços
         in: body
-        name: credentials
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.LoginRequest'
+          $ref: '#/definitions/handlers.MergeAppointmentsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.LoginResponse'
+            $ref: '#/definitions/models.Appointment'
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/handlers.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Realiza login e retorna JWT token
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Mescla serviços em um agendamento existente
       tags:
-      - auth
-  /auth/register:
-    post:
-      consumes:
-      - application/json
-      description: Cria uma nova conta de cliente e retorna um token JWT
-      parameters:
-      - description: Dados de registro
-        in: body
-        name: credentials
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.RegisterRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/handlers.RegisterResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Registra um novo cliente
-      tags:
-      - auth
+      - appointments
   /services:
     get:
       description: Retrieve all available services

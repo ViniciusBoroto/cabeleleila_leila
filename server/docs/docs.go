@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/admin/appointments/{id}/confirm": {
             "post": {
-                "description": "Confirma um agendamento operacionalmente",
+                "description": "Atualiza o status de um agendamento operacionalmente",
                 "consumes": [
                     "application/json"
                 ],
@@ -27,7 +27,7 @@ const docTemplate = `{
                 "tags": [
                     "admin"
                 ],
-                "summary": "Confirma um agendamento",
+                "summary": "Atualiza o status de um agendamento",
                 "parameters": [
                     {
                         "type": "integer",
@@ -38,8 +38,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -691,9 +691,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/login": {
+        "/appointments/{id}/merge": {
             "post": {
-                "description": "Autentica o usuário e retorna um token JWT",
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Adiciona novos serviços a um agendamento existente",
                 "consumes": [
                     "application/json"
                 ],
@@ -701,17 +706,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "appointments"
                 ],
-                "summary": "Realiza login e retorna JWT token",
+                "summary": "Mescla serviços em um agendamento existente",
                 "parameters": [
                     {
-                        "description": "Credenciais de login",
-                        "name": "credentials",
+                        "type": "integer",
+                        "description": "ID do agendamento existente",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Novos serviços",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.LoginRequest"
+                            "$ref": "#/definitions/handlers.MergeAppointmentsRequest"
                         }
                     }
                 ],
@@ -719,77 +731,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.LoginResponse"
+                            "$ref": "#/definitions/models.Appointment"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/register": {
-            "post": {
-                "description": "Cria uma nova conta de cliente e retorna um token JWT",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Registra um novo cliente",
-                "parameters": [
-                    {
-                        "description": "Dados de registro",
-                        "name": "credentials",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.RegisterRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.RegisterResponse"
+                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     }
                 }
@@ -940,65 +906,14 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.LoginRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                }
-            }
-        },
-        "handlers.LoginResponse": {
+        "handlers.MergeAppointmentsRequest": {
             "type": "object",
             "properties": {
-                "token": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/handlers.UserInfo"
-                }
-            }
-        },
-        "handlers.RegisterRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "name",
-                "password",
-                "phone"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                },
-                "phone": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.RegisterResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/handlers.UserInfo"
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Service"
+                    }
                 }
             }
         },
@@ -1050,23 +965,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone": {
-                    "type": "string"
-                },
-                "role": {
-                    "$ref": "#/definitions/models.UserRole"
-                }
-            }
-        },
-        "handlers.UserInfo": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
                     "type": "string"
                 },
                 "role": {

@@ -21,6 +21,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -122,8 +123,31 @@ func migrateDatabase(db *gorm.DB) {
 }
 
 func seed(db *gorm.DB) {
-	// Check if services already exist
 	var count int64
+	db.Model(&models.User{}).Where("role = 'admin'").Count(&count)
+	if count > 0 {
+		return
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Error seeding admin failed to hash password: %v", err)
+		return
+	}
+	admin := models.User{
+		Email:    "admin@admin.com",
+		Password: string(hashedPassword),
+		Name:     "admin",
+		Phone:    "123456789",
+		Role:     models.RoleAdmin,
+		IsActive: true,
+	}
+	if err := db.Create(&admin).Error; err != nil {
+		log.Printf("Error seeding admin: %v", err)
+	}
+	log.Println("Admin seeded successfully")
+	count = 0
+
+	// Check if services already exist
 	db.Model(&models.Service{}).Count(&count)
 	if count > 0 {
 		return

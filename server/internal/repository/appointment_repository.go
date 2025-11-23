@@ -12,5 +12,6 @@ type AppointmentRepository interface {
 	FindByID(id uint) (models.Appointment, error)
 	FindUserAppointmentsInWeek(userID uint, weekStart, weekEnd time.Time) ([]models.Appointment, error)
 	ListByPeriod(start, end time.Time) ([]models.Appointment, error)
+	ListByPeriodAndUser(userID uint, start, end time.Time) ([]models.Appointment, error)
 	ListAll() ([]models.Appointment, error)
 }
