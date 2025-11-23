@@ -74,6 +74,9 @@ func main() {
 	protected := r.Group("/api")
 	protected.Use(handlers.JWTAuthMiddleware(authSvc))
 	{
+		protected.GET("/auth/validate", authHandler.ValidateToken)
+		protected.POST("/auth/refresh", authHandler.RefreshToken)
+
 		// Appointment routes (for all authenticated users)
 		appointmentsHandler.RegisterRoutes(protected)
 

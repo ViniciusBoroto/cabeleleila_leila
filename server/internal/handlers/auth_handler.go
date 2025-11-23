@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/models"
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/repository"
@@ -11,13 +12,13 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc service.AuthService
+	authSvc  service.AuthService
 	userRepo repository.UserRepository
 }
 
 func NewAuthHandler(authSvc service.AuthService, userRepo repository.UserRepository) *AuthHandler {
 	return &AuthHandler{
-		authSvc: authSvc,
+		authSvc:  authSvc,
 		userRepo: userRepo,
 	}
 }
@@ -28,8 +29,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string      `json:"token"`
-	User  UserInfo    `json:"user"`
+	Token string   `json:"token"`
+	User  UserInfo `json:"user"`
 }
 
 type RegisterRequest struct {
@@ -40,28 +41,28 @@ type RegisterRequest struct {
 }
 
 type RegisterResponse struct {
-	Token string      `json:"token"`
-	User  UserInfo    `json:"user"`
+	Token string   `json:"token"`
+	User  UserInfo `json:"user"`
 }
 
 type UserInfo struct {
-	ID    uint                `json:"id"`
-	Email string              `json:"email"`
-	Name  string              `json:"name"`
-	Role  models.UserRole     `json:"role"`
+	ID    uint            `json:"id"`
+	Email string          `json:"email"`
+	Name  string          `json:"name"`
+	Role  models.UserRole `json:"role"`
 }
 
-// Login godoc
-// @Summary      Realiza login e retorna JWT token
-// @Description  Autentica o usuário e retorna um token JWT
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        credentials  body      LoginRequest  true  "Credenciais de login"
-// @Success      200          {object}  LoginResponse
-// @Failure      400          {object}  map[string]string
-// @Failure      401          {object}  map[string]string
-// @Router       /auth/login [post]
+type ValidateTokenResponse struct {
+	Valid  bool   `json:"valid"`
+	UserID uint   `json:"user_id,omitempty"`
+	Email  string `json:"email,omitempty"`
+	Role   string `json:"role,omitempty"`
+}
+
+type RefreshTokenResponse struct {
+	Token string `json:"token"`
+}
+
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.BindJSON(&req); err != nil {
@@ -75,19 +76,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Check if user is active
 	if !user.IsActive {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user account is inactive"})
 		return
 	}
 
-	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 		return
 	}
 
-	// Generate token
 	token, err := h.authSvc.GenerateToken(user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
@@ -105,17 +103,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Register godoc
-// @Summary      Registra um novo cliente
-// @Description  Cria uma nova conta de cliente e retorna um token JWT
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        credentials  body      RegisterRequest  true  "Dados de registro"
-// @Success      201          {object}  RegisterResponse
-// @Failure      400          {object}  map[string]string
-// @Failure      409          {object}  map[string]string
-// @Router       /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.BindJSON(&req); err != nil {
@@ -123,28 +110,24 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Check if user already exists
 	_, err := h.userRepo.FindByEmail(req.Email)
 	if err == nil {
-		// User found - email already exists
 		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
 		return
 	}
 
-	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process password"})
 		return
 	}
 
-	// Create new customer user
 	user := models.User{
 		Email:    req.Email,
 		Password: string(hashedPassword),
 		Name:     req.Name,
 		Phone:    req.Phone,
-		Role:     models.RoleCustomer, // New registrations are always customers
+		Role:     models.RoleCustomer,
 		IsActive: true,
 	}
 
@@ -154,7 +137,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Generate token
 	token, err := h.authSvc.GenerateToken(created)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
@@ -169,5 +151,58 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			Name:  created.Name,
 			Role:  created.Role,
 		},
+	})
+}
+
+func (h *AuthHandler) ValidateToken(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+		return
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+		return
+	}
+
+	claims, err := h.authSvc.ValidateToken(parts[1])
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, ValidateTokenResponse{
+			Valid: false,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, ValidateTokenResponse{
+		Valid:  true,
+		UserID: claims.UserID,
+		Email:  claims.Email,
+		Role:   string(claims.Role),
+	})
+}
+
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+		return
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+		return
+	}
+
+	newToken, err := h.authSvc.RefreshToken(parts[1])
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, RefreshTokenResponse{
+		Token: newToken,
 	})
 }

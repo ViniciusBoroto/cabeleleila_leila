@@ -1,18 +1,62 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 interface PrivateRouteProps {
   children: React.ReactNode;
+  allowedRoles?: string[];
 }
 
-export default function PrivateRoute({ children }: PrivateRouteProps) {
-  // Verifica se o usuário está logado (tem token)
-  const token = localStorage.getItem("token");
+const API_BASE = "http://localhost:8080/api";
 
-  // Se não tiver token, redireciona para o login
-  if (!token) {
+export default function PrivateRoute({
+  children,
+  allowedRoles,
+}: PrivateRouteProps) {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const validateToken = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
+    const response = await fetch(`${API_BASE}/auth/validate`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setUserRole(data.role);
+      setIsAuthenticated(true);
+    } else {
+      console.error("Erro ao validar token");
+      localStorage.removeItem("token");
+      setIsAuthenticated(false);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    validateToken();
+  }, []);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated || !userRole) {
     return <Navigate to="/login" replace />;
   }
 
-  // Se tiver token, mostra a página
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    return <Navigate to="/forbidden" replace />;
+  }
+
   return <>{children}</>;
 }
