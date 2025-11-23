@@ -5,6 +5,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import NotFoundPage from "./pages/NotFound.tsx";
 import ForbiddenPage from "./pages/Forbidden.tsx";
 import AdminDashboardPage from "./pages/AdminDashboard.tsx";
+import RegisterPage from "./pages/RegisterPage.tsx";
 
 function App() {
   return (
@@ -22,8 +23,9 @@ function App() {
           }
         />
 
-        {/* Rota de Login - acessível sem autenticação */}
         <Route path="/login" element={<LoginPage />} />
+
+        <Route path="/registrar" element={<RegisterPage />} />
 
         {/* Rota de Dashboard - protegida, só acessa se estiver logado */}
         <Route
