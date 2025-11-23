@@ -44,6 +44,54 @@ func (h *AppointmentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 // ListUserAppointments godoc
+// @Summary      Lista agendamentos de todos usuarios
+// @Description  Retorna histórico ou agendamentos em um período
+// @Tags         appointments
+// @Security     Bearer
+// @Accept       json
+// @Produce      json
+// @Param        start_date  query  string  false  "Data inicial"
+// @Param        end_date    query  string  false  "Data final"
+// @Success      200  {array}  models.Appointment
+// @Failure      401  {object}  map[string]string
+// @Failure      500  {object}  ErrorResponse
+// @Router       /admin/appointments [get]
+func (h *AppointmentHandler) ListAllAppointments(c *gin.Context) {
+	role, exists := c.Get("role")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing role in token"})
+		return
+	}
+	if role != models.RoleAdmin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "you can only list your own appointments"})
+		return
+	}
+
+	var filter models.AppointmentFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if filter.StartDate == nil {
+		dftStart := time.Now().AddDate(0, -3, 0)
+		filter.StartDate = &dftStart
+	}
+	if filter.EndDate == nil {
+		dftEnd := time.Now().AddDate(0, 3, 0)
+		filter.EndDate = &dftEnd
+	}
+
+	list, err := h.svc.ListHistory(*filter.StartDate, *filter.EndDate)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, list)
+}
+
+// ListUserAppointments godoc
 // @Summary      Lista agendamentos
 // @Description  Retorna histórico ou agendamentos em um período
 // @Tags         appointments
@@ -168,7 +216,7 @@ func (h *AppointmentHandler) CreateAppointment(c *gin.Context) {
 // @Failure      401  {object}  ErrorResponse
 // @Failure      403  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
-// @Router       /appointments/{id} [put]
+// @Router       /admin/appointments/{id} [put]
 func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -201,7 +249,7 @@ func (h *AppointmentHandler) UpdateAppointment(c *gin.Context) {
 	}
 
 	req.UpdatedAt = time.Now()
-	updated, err := h.svc.UpdateAppointment(uint(id), req)
+	updated, err := h.svc.UpdateAppointment(uint(id), req, role.(models.UserRole))
 	if err != nil {
 		if errors.Is(err, models.ErrCannotUpdateWithingTwoDays) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})

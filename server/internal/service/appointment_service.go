@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/ViniciusBoroto/cabeleleila_leila/internal/models"
@@ -10,7 +9,7 @@ import (
 
 type AppointmentService interface {
 	CreateAppointment(userID uint, services []models.Service, date time.Time) (created models.Appointment, suggestion *models.Appointment, res error)
-	UpdateAppointment(id uint, newAp models.Appointment) (models.Appointment, error)
+	UpdateAppointment(id uint, newAp models.Appointment, role models.UserRole) (models.Appointment, error)
 	ListHistory(start, end time.Time) ([]models.Appointment, error)
 	ListUserHistory(userID uint, start, end time.Time) ([]models.Appointment, error)
 	ListAll() ([]models.Appointment, error)
@@ -66,21 +65,22 @@ func (s *appointmentService) CreateAppointment(userID uint, services []models.Se
 	return
 }
 
-func (s *appointmentService) UpdateAppointment(id uint, newAp models.Appointment) (models.Appointment, error) {
+func (s *appointmentService) UpdateAppointment(id uint, newAp models.Appointment, role models.UserRole) (models.Appointment, error) {
 	newAp.ID = id
 
 	ap, err := s.repo.FindByID(id)
 	if err != nil {
 		return ap, err
 	}
-
-	diff := time.Until(ap.Date)
-	if diff < (48 * time.Hour) {
-		return ap, errors.New("alterações só podem ser feitas por telefone")
+	if role != models.RoleAdmin {
+		diff := time.Until(ap.Date)
+		if diff < (48 * time.Hour) {
+			return ap, models.ErrCannotUpdateWithingTwoDays
+		}
 	}
 
 	err = s.repo.Update(newAp)
-	return ap, err
+	return newAp, err
 }
 
 func (s *appointmentService) ListHistory(start, end time.Time) ([]models.Appointment, error) {

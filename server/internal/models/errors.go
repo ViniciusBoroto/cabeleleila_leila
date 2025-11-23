@@ -3,5 +3,5 @@ package models
 import "errors"
 
 var (
-	ErrCannotUpdateWithingTwoDays = errors.New("cannot update appointment within two days of scheduled date")
+	ErrCannotUpdateWithingTwoDays = errors.New("alterações dentro de 2 dias não são permitidas")
 )

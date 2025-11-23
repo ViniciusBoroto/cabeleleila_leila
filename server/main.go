@@ -8,6 +8,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 
 	_ "github.com/ViniciusBoroto/cabeleleila_leila/docs"
@@ -65,6 +66,10 @@ func main() {
 	// Public routes
 	public := r.Group("/api")
 	{
+		public.GET("/ping", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusOK, gin.H{"message": "pong"})
+		})
+
 		public.POST("/auth/login", authHandler.Login)
 		public.POST("/auth/register", authHandler.Register)
 		public.GET("/services", handlers.ListServices(serviceSvc))
@@ -83,16 +88,21 @@ func main() {
 
 		// User management routes (admin only)
 		admin := protected.Group("/admin")
-		admin.GET("/users", handlers.GetAllUsers(userRepo))
-		admin.POST("/users", handlers.CreateUser(userRepo))
-		admin.GET("/users/:id", handlers.GetUser(userRepo))
-		admin.PUT("/users/:id", handlers.UpdateUser(userRepo))
-		admin.DELETE("/users/:id", handlers.DeleteUser(userRepo))
+		{
+			admin.GET("/users", handlers.GetAllUsers(userRepo))
+			admin.POST("/users", handlers.CreateUser(userRepo))
+			admin.GET("/users/:id", handlers.GetUser(userRepo))
+			admin.PUT("/users/:id", handlers.UpdateUser(userRepo))
+			admin.DELETE("/users/:id", handlers.DeleteUser(userRepo))
 
-		// Service management routes (admin only)
-		admin.POST("/services", handlers.CreateService(serviceSvc))
-		admin.PUT("/services/:id", handlers.UpdateService(serviceSvc))
-		admin.DELETE("/services/:id", handlers.DeleteService(serviceSvc))
+			admin.PUT("/appointments/:id", appointmentsHandler.UpdateAppointment)
+			admin.GET("/appointments", appointmentsHandler.ListAllAppointments)
+
+			// Service management routes (admin only)
+			admin.POST("/services", handlers.CreateService(serviceSvc))
+			admin.PUT("/services/:id", handlers.UpdateService(serviceSvc))
+			admin.DELETE("/services/:id", handlers.DeleteService(serviceSvc))
+		}
 	}
 
 	if err := r.Run(":8080"); err != nil {

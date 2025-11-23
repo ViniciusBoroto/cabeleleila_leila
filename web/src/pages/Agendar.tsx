@@ -4,6 +4,7 @@ import AppointmentForm from "../components/AppointmentForm";
 import AppointmentList from "../components/AppointmentList";
 import AppointmentSuggestionModal from "../components/AppointmentSuggestionModal";
 import CancelConfirmationModal from "../components/CancelConfirmationModal";
+import LogoutButton from "../components/LogoutButton";
 
 // Tipos baseados na API
 interface Service {
@@ -35,7 +36,11 @@ const formatDateToISO = (dateString: string) => {
   return date.toISOString();
 };
 
-const SalonDashboard = () => {
+const AgendarPage = () => {
+  const isAdmin = localStorage.getItem("role") === "admin"; // TODO: Mover isso para o header
+  if (isAdmin) {
+    window.location.href = "/admin/dashboard";
+  }
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
@@ -342,11 +347,12 @@ const SalonDashboard = () => {
           </div>
           <button
             onClick={() => setShowNewAppointment(true)}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+            className="flex cursor-pointer items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
           >
             <Plus className="w-5 h-5" />
             Novo Agendamento
           </button>
+          <LogoutButton />
         </div>
 
         {/* Mensagem de erro */}
@@ -403,4 +409,4 @@ const SalonDashboard = () => {
   );
 };
 
-export default SalonDashboard;
+export default AgendarPage;

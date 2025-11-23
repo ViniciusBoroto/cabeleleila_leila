@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage.tsx";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/Agendar.tsx";
 import PrivateRoute from "./components/PrivateRoute";
 import NotFoundPage from "./pages/NotFound.tsx";
 import ForbiddenPage from "./pages/Forbidden.tsx";
+import AdminDashboardPage from "./pages/AdminDashboard.tsx";
 
 function App() {
   return (
@@ -14,7 +15,7 @@ function App() {
           path="/"
           element={
             localStorage.getItem("token") ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate to="/agendar" replace />
             ) : (
               <Navigate to="/login" replace />
             )
@@ -26,7 +27,7 @@ function App() {
 
         {/* Rota de Dashboard - protegida, só acessa se estiver logado */}
         <Route
-          path="/dashboard"
+          path="/agendar"
           element={
             <PrivateRoute allowedRoles={["admin", "customer"]}>
               <Dashboard />
@@ -36,10 +37,10 @@ function App() {
 
         {/* Rota de Administração - protegida, só acessa se estiver logado e ser admin */}
         <Route
-          path="/admin"
+          path="/admin/dashboard"
           element={
             <PrivateRoute allowedRoles={["admin"]}>
-              <h1>Admin Page</h1>
+              <AdminDashboardPage />
             </PrivateRoute>
           }
         />

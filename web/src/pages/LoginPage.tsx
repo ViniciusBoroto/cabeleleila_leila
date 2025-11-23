@@ -44,7 +44,7 @@ export default function LoginPage() {
         }
 
         // Redireciona para o dashboard
-        window.location.href = "/dashboard";
+        window.location.href = "/agendar";
       } else {
         // Erro no login (credenciais inválidas, etc)
         setErro(data.message || "Email ou senha incorretos");

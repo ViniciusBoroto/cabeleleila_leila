@@ -33,6 +33,9 @@ export default function PrivateRoute({
     if (response.ok) {
       const data = await response.json();
       setUserRole(data.role);
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("role", data.role);
       setIsAuthenticated(true);
     } else {
       console.error("Erro ao validar token");
