@@ -37,7 +37,6 @@ type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=6"`
 	Name     string `json:"name" binding:"required"`
-	Phone    string `json:"phone" binding:"required"`
 }
 
 type RegisterResponse struct {
@@ -126,7 +125,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Email:    req.Email,
 		Password: string(hashedPassword),
 		Name:     req.Name,
-		Phone:    req.Phone,
 		Role:     models.RoleCustomer,
 		IsActive: true,
 	}

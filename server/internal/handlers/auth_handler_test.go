@@ -341,7 +341,6 @@ func TestRegister_Success(t *testing.T) {
 		Email:    "newcustomer@example.com",
 		Password: "password123",
 		Name:     "New Customer",
-		Phone:    "123456789",
 	}
 
 	body, _ := json.Marshal(req)
@@ -386,7 +385,6 @@ func TestRegister_EmailAlreadyExists(t *testing.T) {
 		Email:    "existing@example.com",
 		Password: "password123",
 		Name:     "Someone Else",
-		Phone:    "987654321",
 	}
 
 	body, _ := json.Marshal(req)
@@ -414,7 +412,6 @@ func TestRegister_InvalidEmail(t *testing.T) {
 		Email:    "invalid-email",
 		Password: "password123",
 		Name:     "Test",
-		Phone:    "123456789",
 	}
 
 	body, _ := json.Marshal(req)
@@ -468,7 +465,6 @@ func TestRegister_ShortPassword(t *testing.T) {
 		Email:    "test@example.com",
 		Password: "pass", // Too short
 		Name:     "Test",
-		Phone:    "123456789",
 	}
 
 	body, _ := json.Marshal(req)
@@ -511,7 +507,6 @@ func TestRegister_AlwaysCreatesCustomer(t *testing.T) {
 		Email:    "customer@example.com",
 		Password: "password123",
 		Name:     "New Customer",
-		Phone:    "123456789",
 	}
 
 	body, _ := json.Marshal(req)
