@@ -65,3 +65,4 @@ O backend iniciará em:
 - O banco SQLite será criado automaticamente no diretório `server/`.
 - O frontend e backend funcionam de forma independente. Cada um precisa ser executado em um terminal diferente.
 - Ficou pendente a implementação de retry e refresh token pela parte do frontend. No backend já está implementado.
+- Ficou pendente a implementação da documentação de todas rotas no Swagger. Algumas rotas ainda não estão documentadas e é possível que algumas não estejam funcionando. para conferir o swagger, acesse: `http://localhost:8080/swagger/index.html`
