@@ -18,6 +18,14 @@ Sistema simples de gerenciamento de salão de beleza.
 
 ---
 
+# 📷 Showcase
+Showcase do projeto está na pasta `showcase/`.
+Inclui:
+- Screenshots do programa em execução
+- Vídeos demonstrando o funcionamento do programa
+
+---
+
 # 🚀 Como executar
 ## Requisitos
 - [Node](https://nodejs.org/en/download)
@@ -56,3 +64,4 @@ O backend iniciará em:
 
 - O banco SQLite será criado automaticamente no diretório `server/`.
 - O frontend e backend funcionam de forma independente. Cada um precisa ser executado em um terminal diferente.
+- Ficou pendente a implementação de retry e refresh token pela parte do frontend. No backend já está implementado.
